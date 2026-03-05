@@ -591,7 +591,7 @@
             <div class="card result" id="resultCard">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
                     <div>
-                        <label style="margin:0;">Resultat</label>
+                        <label style="margin:0;">Transcription</label>
                         <div style="font-size:0.8rem;color:#64748b;" id="resultMeta"></div>
                     </div>
                     <div style="display:flex;gap:0.5rem;">
@@ -601,6 +601,26 @@
                     </div>
                 </div>
                 <textarea class="result-text" id="resultText" readonly></textarea>
+            </div>
+            <div class="card result" id="summaryCard" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                    <div style="display:flex;align-items:center;gap:0.8rem;">
+                        <label style="margin:0;">Resume IA</label>
+                        <span class="llm-badge" id="summaryBadge"></span>
+                    </div>
+                    <span class="summary-status" id="uploadSummaryStatus"></span>
+                </div>
+                <div class="summary-content" id="uploadSummaryContent"></div>
+            </div>
+            <div class="card result" id="keyPointsCard" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                    <div style="display:flex;align-items:center;gap:0.8rem;">
+                        <label style="margin:0;">Points Cles</label>
+                        <span class="llm-badge" id="keyPointsBadge"></span>
+                    </div>
+                    <span class="summary-status" id="uploadKeyPointsStatus"></span>
+                </div>
+                <div class="summary-content" id="uploadKeyPointsContent"></div>
             </div>
         `;
 
@@ -620,6 +640,14 @@
         const btnCopy = document.getElementById('btnCopy');
         const btnViewDetail = document.getElementById('btnViewDetail');
         const statusBanner = document.getElementById('statusBanner');
+        const summaryCard = document.getElementById('summaryCard');
+        const uploadSummaryContent = document.getElementById('uploadSummaryContent');
+        const uploadSummaryStatus = document.getElementById('uploadSummaryStatus');
+        const summaryBadge = document.getElementById('summaryBadge');
+        const keyPointsCard = document.getElementById('keyPointsCard');
+        const uploadKeyPointsContent = document.getElementById('uploadKeyPointsContent');
+        const uploadKeyPointsStatus = document.getElementById('uploadKeyPointsStatus');
+        const keyPointsBadge = document.getElementById('keyPointsBadge');
 
         let selectedFile = null;
 
@@ -675,10 +703,16 @@
             btnTranscribe.disabled = true;
             errorMsg.classList.remove('active');
             resultCard.classList.remove('active');
+            summaryCard.style.display = 'none';
+            uploadSummaryContent.textContent = '';
+            keyPointsCard.style.display = 'none';
+            uploadKeyPointsContent.textContent = '';
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
             liveText.textContent = '';
 
+            let summaryMd = '';
+            let keyPointsMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -712,19 +746,51 @@
                                 'Segment [' + formatTime(event.segment.start) + ' -> ' + formatTime(event.segment.end) + ']');
                             appendLiveText(event.segment.text);
                         } else if (event.type === 'result') {
-                            setProgress(100, 'Termine !');
+                            setProgress(100, 'Transcription terminee !');
                             lastResultData = { text: event.text, language: event.language, duration: event.duration, fileName: selectedFile.name };
-                            setTimeout(() => {
-                                progressContainer.classList.remove('active');
-                                resultText.value = event.text;
-                                resultMeta.textContent = 'Langue : ' + event.language +
-                                    ' (' + (event.language_probability*100).toFixed(0) + '%) — Duree : ' + formatTime(event.duration);
-                                resultCard.classList.add('active');
-                                if (event.transcription_id) {
-                                    btnViewDetail.style.display = '';
-                                    btnViewDetail.onclick = () => navigate('#/transcriptions/' + event.transcription_id);
-                                }
-                            }, 500);
+                            progressContainer.classList.remove('active');
+                            resultText.value = event.text;
+                            resultMeta.textContent = 'Langue : ' + event.language +
+                                ' (' + (event.language_probability*100).toFixed(0) + '%) — Duree : ' + formatTime(event.duration);
+                            resultCard.classList.add('active');
+                            if (event.transcription_id) {
+                                btnViewDetail.style.display = '';
+                                btnViewDetail.onclick = () => navigate('#/transcriptions/' + event.transcription_id);
+                            }
+                        } else if (event.type === 'analysis_start') {
+                            if (event.analysis === 'key_points') {
+                                keyPointsCard.style.display = 'block';
+                                keyPointsBadge.textContent = 'Generation en cours...';
+                                uploadKeyPointsStatus.textContent = '';
+                                uploadKeyPointsContent.innerHTML = '<span style="color:#64748b;">Extraction des points cles...</span>';
+                                keyPointsMd = '';
+                            } else {
+                                summaryCard.style.display = 'block';
+                                summaryBadge.textContent = 'Generation en cours...';
+                                uploadSummaryStatus.textContent = '';
+                                uploadSummaryContent.innerHTML = '<span style="color:#64748b;">Le resume se genere...</span>';
+                                summaryMd = '';
+                            }
+                        } else if (event.type === 'analysis_token') {
+                            if (event.analysis === 'key_points') {
+                                keyPointsMd += event.token;
+                                uploadKeyPointsContent.innerHTML = markdownToHtml(keyPointsMd);
+                                uploadKeyPointsContent.scrollTop = uploadKeyPointsContent.scrollHeight;
+                                keyPointsBadge.textContent = 'IA';
+                            } else {
+                                summaryMd += event.token;
+                                uploadSummaryContent.innerHTML = markdownToHtml(summaryMd);
+                                uploadSummaryContent.scrollTop = uploadSummaryContent.scrollHeight;
+                                summaryBadge.textContent = 'IA';
+                            }
+                        } else if (event.type === 'analysis_done') {
+                            if (event.analysis === 'key_points') {
+                                uploadKeyPointsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
+                                keyPointsBadge.textContent = 'IA';
+                            } else {
+                                uploadSummaryStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
+                                summaryBadge.textContent = 'IA';
+                            }
                         } else if (event.type === 'error') {
                             throw new Error(event.message);
                         }
@@ -820,12 +886,30 @@
                         </div>
                     </div>
                     <div class="card summary-card">
-                        <label>Analyse IA</label>
-                        <div class="summary-actions">
-                            <button class="btn btn-sm btn-ai" id="btnSummarize">Résumer</button>
-                            <span class="summary-status" id="summaryStatus"></span>
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                            <div style="display:flex;align-items:center;gap:0.8rem;">
+                                <label style="margin:0;">Resume IA</label>
+                                <span class="llm-badge" id="detailSummaryBadge"></span>
+                            </div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <span class="summary-status" id="summaryStatus"></span>
+                                <button class="btn btn-sm btn-ai" id="btnSummarize">Regenerer</button>
+                            </div>
                         </div>
-                        <div class="summary-content" id="summaryContent" style="display:none;"></div>
+                        <div class="summary-content" id="summaryContent"></div>
+                    </div>
+                    <div class="card summary-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                            <div style="display:flex;align-items:center;gap:0.8rem;">
+                                <label style="margin:0;">Points Cles</label>
+                                <span class="llm-badge" id="detailKeyPointsBadge"></span>
+                            </div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <span class="summary-status" id="keyPointsStatus"></span>
+                                <button class="btn btn-sm btn-ai" id="btnKeyPoints">Regenerer</button>
+                            </div>
+                        </div>
+                        <div class="summary-content" id="keyPointsContent"></div>
                     </div>
                 </div>
                 <div>
@@ -885,26 +969,30 @@
         const btnSummarize = document.getElementById('btnSummarize');
         const summaryContent = document.getElementById('summaryContent');
         const summaryStatus = document.getElementById('summaryStatus');
+        const detailSummaryBadge = document.getElementById('detailSummaryBadge');
 
         // Charger un résumé existant
         try {
             const existing = await api('/api/transcriptions/' + id + '/analysis/summary');
             if (existing && existing.content) {
-                summaryContent.style.display = 'block';
                 summaryContent.innerHTML = markdownToHtml(existing.content);
-                summaryStatus.textContent = 'Généré avec ' + (existing.model_name || 'LLM') +
-                    ' (' + formatMs(existing.processing_ms) + ')';
+                detailSummaryBadge.textContent = existing.model_name || 'IA';
+                summaryStatus.textContent = formatMs(existing.processing_ms);
+            } else {
+                summaryContent.innerHTML = '<span style="color:#64748b;">Aucun resume disponible.</span>';
             }
         } catch (e) {
-            // Pas de résumé existant — c'est normal
+            summaryContent.innerHTML = '<span style="color:#64748b;">Aucun resume disponible.</span>';
         }
 
         // Vérifier si le LLM est disponible
+        let llmAvailable = false;
         try {
             const llmStatus = await api('/api/llm/status');
-            if (!llmStatus.available) {
+            llmAvailable = llmStatus.available;
+            if (!llmAvailable) {
                 btnSummarize.disabled = true;
-                btnSummarize.title = 'LLM non disponible (Ollama non lancé)';
+                btnSummarize.title = 'LLM non disponible (Ollama non lance)';
                 btnSummarize.style.opacity = '0.5';
             }
         } catch {
@@ -912,11 +1000,11 @@
             btnSummarize.style.opacity = '0.5';
         }
 
-        btnSummarize.addEventListener('click', async () => {
+        async function runSummarize() {
             btnSummarize.disabled = true;
-            summaryContent.style.display = 'block';
             summaryContent.textContent = '';
-            summaryStatus.textContent = 'Génération en cours...';
+            summaryStatus.textContent = 'Generation en cours...';
+            detailSummaryBadge.textContent = '';
 
             try {
                 const resp = await fetch('/api/transcriptions/' + id + '/summarize', { method: 'POST' });
@@ -946,8 +1034,9 @@
                             fullMd += event.token;
                             summaryContent.innerHTML = markdownToHtml(fullMd);
                             summaryContent.scrollTop = summaryContent.scrollHeight;
+                            detailSummaryBadge.textContent = 'IA';
                         } else if (event.type === 'done') {
-                            summaryStatus.textContent = 'Terminé (' + formatMs(event.processing_ms) + ')';
+                            summaryStatus.textContent = formatMs(event.processing_ms);
                         } else if (event.type === 'error') {
                             throw new Error(event.message);
                         }
@@ -959,7 +1048,87 @@
             } finally {
                 btnSummarize.disabled = false;
             }
-        });
+        }
+
+        btnSummarize.addEventListener('click', runSummarize);
+
+        // --- Points Cles IA ---
+        const btnKeyPoints = document.getElementById('btnKeyPoints');
+        const keyPointsContent = document.getElementById('keyPointsContent');
+        const keyPointsStatus = document.getElementById('keyPointsStatus');
+        const detailKeyPointsBadge = document.getElementById('detailKeyPointsBadge');
+
+        // Charger des points cles existants
+        try {
+            const existingKp = await api('/api/transcriptions/' + id + '/analysis/key_points');
+            if (existingKp && existingKp.content) {
+                keyPointsContent.innerHTML = markdownToHtml(existingKp.content);
+                detailKeyPointsBadge.textContent = existingKp.model_name || 'IA';
+                keyPointsStatus.textContent = formatMs(existingKp.processing_ms);
+            } else {
+                keyPointsContent.innerHTML = '<span style="color:#64748b;">Aucun point cle disponible.</span>';
+            }
+        } catch (e) {
+            keyPointsContent.innerHTML = '<span style="color:#64748b;">Aucun point cle disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnKeyPoints.disabled = true;
+            btnKeyPoints.title = 'LLM non disponible (Ollama non lance)';
+            btnKeyPoints.style.opacity = '0.5';
+        }
+
+        async function runKeyPoints() {
+            btnKeyPoints.disabled = true;
+            keyPointsContent.textContent = '';
+            keyPointsStatus.textContent = 'Generation en cours...';
+            detailKeyPointsBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/extract-key-points', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            keyPointsContent.innerHTML = markdownToHtml(fullMd);
+                            keyPointsContent.scrollTop = keyPointsContent.scrollHeight;
+                            detailKeyPointsBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            keyPointsStatus.textContent = formatMs(event.processing_ms);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                keyPointsStatus.textContent = 'Erreur : ' + e.message;
+                keyPointsStatus.style.color = '#fca5a5';
+            } finally {
+                btnKeyPoints.disabled = false;
+            }
+        }
+
+        btnKeyPoints.addEventListener('click', runKeyPoints);
 
         // Segment click = seek audio
         if (hasAudio) {

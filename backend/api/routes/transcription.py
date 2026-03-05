@@ -15,11 +15,14 @@ from backend.database import (
     get_connection, create_transcription, get_transcription,
     get_transcription_with_segments, list_transcriptions,
     update_transcription_meta, update_segment_text,
-    save_result_sync, mark_error_sync,
+    save_result_sync, mark_error_sync, save_analysis_sync,
 )
 from backend.transcription import whisper_service
 from backend.audio_processing import vad
 from backend.outputs.exports import export_txt, export_json, export_srt, export_vtt, export_md
+from backend.llm_processing import ollama_client
+from backend.llm_processing.summarizer import summarize_stream
+from backend.llm_processing.key_points import extract_key_points_stream
 
 router = APIRouter()
 
@@ -140,6 +143,44 @@ async def transcribe(
                 "segments": segments,
             }
             yield f"data: {json.dumps(result, ensure_ascii=False)}\n\n"
+
+            # --- Étape 3 : Analyse LLM automatique (résumé) ---
+            if full_text.strip() and ollama_client.is_available():
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'summary'}, ensure_ascii=False)}\n\n"
+                    llm_start = time.time()
+                    use_model = config.LLM_MODEL
+
+                    for chunk in summarize_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            llm_ms = int((time.time() - llm_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "summary",
+                                chunk["full_text"], use_model, llm_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'summary', 'processing_ms': llm_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'summary', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur résumé automatique (ignorée): {e}")
+
+                # --- Étape 4 : Analyse LLM automatique (points clés) ---
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'key_points'}, ensure_ascii=False)}\n\n"
+                    kp_start = time.time()
+
+                    for chunk in extract_key_points_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            kp_ms = int((time.time() - kp_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "key_points",
+                                chunk["full_text"], use_model, kp_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'key_points', 'processing_ms': kp_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'key_points', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur points clés automatique (ignorée): {e}")
 
         except Exception as e:
             mark_error_sync(config.DB_PATH, tid, str(e))
