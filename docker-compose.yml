@@ -1,0 +1,15 @@
+services:
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-models:/models
+    environment:
+      - WHISPER_MODEL=medium
+    restart: unless-stopped
+
+volumes:
+  whisper-models:

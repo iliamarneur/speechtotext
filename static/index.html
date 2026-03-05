@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcription Audio</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        .container { width: 100%; max-width: 700px; }
+        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.3rem; color: #f8fafc; }
+        .subtitle { color: #94a3b8; margin-bottom: 1.2rem; font-size: 0.95rem; }
+
+        /* Status banner */
+        .status-banner {
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .status-banner.loading {
+            background: #1e3a5f;
+            border: 1px solid #2563eb;
+            color: #93c5fd;
+        }
+        .status-banner.ready {
+            background: #14532d;
+            border: 1px solid #16a34a;
+            color: #86efac;
+        }
+        .status-spinner {
+            display: inline-block;
+            width: 16px; height: 16px;
+            border: 2px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        .status-dot {
+            width: 10px; height: 10px;
+            background: #22c55e;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 2px dashed #475569;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            margin-bottom: 1rem;
+        }
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+        .drop-zone p { color: #94a3b8; }
+        .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .file-name {
+            margin-top: 0.5rem;
+            color: #3b82f6;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.8rem;
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #2563eb; }
+        .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+        /* Progress bar */
+        .progress-container {
+            display: none;
+            margin-top: 1.2rem;
+        }
+        .progress-container.active { display: block; }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .progress-label { color: #94a3b8; }
+        .progress-percent { color: #3b82f6; font-weight: 700; font-size: 1rem; }
+        .progress-bar-track {
+            width: 100%;
+            height: 12px;
+            background: #0f172a;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .progress-detail {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #64748b;
+            min-height: 1.2em;
+        }
+        .progress-live-text {
+            margin-top: 0.8rem;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.8rem;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Result */
+        .result { display: none; }
+        .result.active { display: block; }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .result-meta { font-size: 0.8rem; color: #64748b; }
+        .result-actions { display: flex; gap: 0.5rem; }
+        .btn-action {
+            padding: 0.4rem 0.8rem;
+            background: #334155;
+            color: #e2e8f0;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-action:hover { background: #475569; }
+        .btn-action.pdf { background: #7c3aed; }
+        .btn-action.pdf:hover { background: #6d28d9; }
+
+        textarea.result-text {
+            width: 100%;
+            min-height: 200px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #e2e8f0;
+            padding: 1rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .segments-toggle {
+            margin-top: 1rem;
+            cursor: pointer;
+            color: #3b82f6;
+            font-size: 0.85rem;
+            user-select: none;
+        }
+        .segments-list {
+            display: none;
+            margin-top: 0.8rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+        }
+        .segments-list.active { display: block; }
+        .segment { padding: 0.5rem 0; border-bottom: 1px solid #1e293b; }
+        .seg-time { color: #3b82f6; font-weight: 600; margin-right: 0.5rem; }
+
+        .error {
+            display: none;
+            background: #7f1d1d;
+            border: 1px solid #991b1b;
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        .error.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Transcription Audio</h1>
+        <p class="subtitle">Whisper — transcription locale, gratuite et open source</p>
+
+        <!-- Status banner -->
+        <div class="status-banner loading" id="statusBanner">
+            <span class="status-spinner"></span>
+            <span id="statusText">Chargement du modele en cours, veuillez patienter...</span>
+        </div>
+
+        <div class="card">
+            <label>Fichier audio</label>
+            <div class="drop-zone" id="dropZone">
+                <div class="icon">&#127908;</div>
+                <p>Cliquez ou glissez un fichier audio ici</p>
+                <p style="font-size:0.8rem; margin-top:0.3rem;">(MP3, WAV, M4A, OGG, FLAC...)</p>
+                <div class="file-name" id="fileName"></div>
+                <input type="file" id="fileInput" accept="audio/*" hidden>
+            </div>
+
+            <label for="language">Langue</label>
+            <select id="language">
+                <option value="fr" selected>Francais</option>
+                <option value="en">English</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Espanol</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Portugues</option>
+                <option value="nl">Nederlands</option>
+                <option value="ar">العربية</option>
+                <option value="">Auto-detection</option>
+            </select>
+
+            <button class="btn" id="btnTranscribe" disabled>Transcrire</button>
+
+            <!-- Progress bar -->
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-header">
+                    <span class="progress-label">Transcription en cours...</span>
+                    <span class="progress-percent" id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progressBar"></div>
+                </div>
+                <div class="progress-detail" id="progressDetail"></div>
+                <div class="progress-live-text" id="liveText"></div>
+            </div>
+
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="card result" id="result">
+            <div class="result-header">
+                <div>
+                    <label style="margin:0;">Resultat</label>
+                    <div class="result-meta" id="resultMeta"></div>
+                </div>
+                <div class="result-actions">
+                    <button class="btn-action" id="btnCopy">Copier</button>
+                    <button class="btn-action pdf" id="btnPdf">Telecharger PDF</button>
+                </div>
+            </div>
+            <textarea class="result-text" id="resultText" readonly></textarea>
+            <div class="segments-toggle" id="segToggle">&#9660; Afficher les segments horodates</div>
+            <div class="segments-list" id="segList"></div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const btnTranscribe = document.getElementById('btnTranscribe');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressDetail = document.getElementById('progressDetail');
+        const liveText = document.getElementById('liveText');
+        const errorEl = document.getElementById('error');
+        const result = document.getElementById('result');
+        const resultText = document.getElementById('resultText');
+        const resultMeta = document.getElementById('resultMeta');
+        const btnCopy = document.getElementById('btnCopy');
+        const btnPdf = document.getElementById('btnPdf');
+        const segToggle = document.getElementById('segToggle');
+        const segList = document.getElementById('segList');
+        const statusBanner = document.getElementById('statusBanner');
+
+        let selectedFile = null;
+        let lastResult = null;
+
+        // --- Check model readiness ---
+        async function checkHealth() {
+            try {
+                const resp = await fetch('/health');
+                const data = await resp.json();
+                if (data.ready) {
+                    statusBanner.className = 'status-banner ready';
+                    statusBanner.innerHTML = '<span class="status-dot"></span> Modele "' + data.model + '" pret — vous pouvez transcrire';
+                    return true;
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        async function pollHealth() {
+            const ready = await checkHealth();
+            if (!ready) setTimeout(pollHealth, 3000);
+        }
+        pollHealth();
+
+        // --- Drop zone ---
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
+
+        function setFile(f) {
+            selectedFile = f;
+            fileName.textContent = f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' Mo)';
+            btnTranscribe.disabled = false;
+        }
+
+        // --- Progress helpers ---
+        function setProgress(pct, detail) {
+            progressBar.style.width = pct + '%';
+            progressPercent.textContent = Math.round(pct) + '%';
+            if (detail) progressDetail.textContent = detail;
+        }
+
+        function appendLiveText(text) {
+            if (!text) return;
+            liveText.textContent += (liveText.textContent ? ' ' : '') + text;
+            liveText.scrollTop = liveText.scrollHeight;
+        }
+
+        // --- Transcription with SSE streaming ---
+        btnTranscribe.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            btnTranscribe.disabled = true;
+            errorEl.classList.remove('active');
+            result.classList.remove('active');
+
+            // Reset & show progress
+            progressContainer.classList.add('active');
+            setProgress(0, 'Envoi du fichier...');
+            liveText.textContent = '';
+
+            const form = new FormData();
+            form.append('file', selectedFile);
+            form.append('language', document.getElementById('language').value);
+
+            try {
+                const resp = await fetch('/transcribe', { method: 'POST', body: form });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+
+                // Read SSE stream
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // keep incomplete line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6);
+                        if (!jsonStr) continue;
+
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'progress') {
+                            setProgress(
+                                event.progress,
+                                'Segment [' + formatTime(event.segment.start) + ' -> ' + formatTime(event.segment.end) + ']'
+                            );
+                            appendLiveText(event.segment.text);
+                        }
+                        else if (event.type === 'result') {
+                            setProgress(100, 'Termine !');
+                            lastResult = event;
+                            lastResult.fileName = selectedFile.name;
+                            // Small delay so user sees 100%
+                            setTimeout(() => {
+                                progressContainer.classList.remove('active');
+                                showResult(event);
+                            }, 500);
+                        }
+                        else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                progressContainer.classList.remove('active');
+                errorEl.textContent = 'Erreur : ' + e.message;
+                errorEl.classList.add('active');
+            } finally {
+                btnTranscribe.disabled = false;
+            }
+        });
+
+        function showResult(data) {
+            resultText.value = data.text;
+            resultMeta.textContent = 'Langue : ' + data.language + ' (' + (data.language_probability * 100).toFixed(0) + '%) — Duree : ' + formatTime(data.duration);
+            result.classList.add('active');
+
+            segList.innerHTML = '';
+            segList.classList.remove('active');
+            segToggle.innerHTML = '&#9660; Afficher les segments horodates';
+            if (data.segments && data.segments.length) {
+                data.segments.forEach(s => {
+                    const div = document.createElement('div');
+                    div.className = 'segment';
+                    div.innerHTML = '<span class="seg-time">[' + formatTime(s.start) + ' -> ' + formatTime(s.end) + ']</span>' + escHtml(s.text);
+                    segList.appendChild(div);
+                });
+            }
+        }
+
+        segToggle.addEventListener('click', () => {
+            const open = segList.classList.toggle('active');
+            segToggle.innerHTML = open ? '&#9650; Masquer les segments' : '&#9660; Afficher les segments horodates';
+        });
+
+        // --- Copy ---
+        btnCopy.addEventListener('click', () => {
+            navigator.clipboard.writeText(resultText.value).then(() => {
+                btnCopy.textContent = 'Copie !';
+                setTimeout(() => btnCopy.textContent = 'Copier', 1500);
+            });
+        });
+
+        // --- PDF Export ---
+        btnPdf.addEventListener('click', () => {
+            if (!lastResult) return;
+            generatePDF(lastResult);
+        });
+
+        function generatePDF(data) {
+            const now = new Date().toLocaleString('fr-FR');
+            const title = 'Transcription : ' + (data.fileName || 'audio');
+            const meta = 'Langue : ' + data.language + ' | Duree : ' + formatTime(data.duration) + ' | Date : ' + now;
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">');
+            printWindow.document.write('<title>' + escHtml(title) + '</title>');
+            printWindow.document.write('<style>');
+            printWindow.document.write('body { font-family: "Segoe UI", Arial, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }');
+            printWindow.document.write('h1 { font-size: 1.4rem; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }');
+            printWindow.document.write('.meta { color: #666; font-size: 0.85rem; margin-bottom: 1.5rem; }');
+            printWindow.document.write('.text { line-height: 1.8; font-size: 1rem; margin-bottom: 2rem; white-space: pre-wrap; }');
+            printWindow.document.write('h2 { font-size: 1.1rem; margin-top: 2rem; margin-bottom: 0.8rem; color: #3b82f6; }');
+            printWindow.document.write('.segment { font-size: 0.85rem; line-height: 1.6; margin-bottom: 0.3rem; }');
+            printWindow.document.write('.seg-time { color: #3b82f6; font-weight: bold; }');
+            printWindow.document.write('@media print { body { margin: 1cm; } }');
+            printWindow.document.write('</style></head><body>');
+            printWindow.document.write('<h1>' + escHtml(title) + '</h1>');
+            printWindow.document.write('<div class="meta">' + escHtml(meta) + '</div>');
+            printWindow.document.write('<div class="text">' + escHtml(data.text) + '</div>');
+
+            if (data.segments && data.segments.length > 0) {
+                printWindow.document.write('<h2>Segments horodates</h2>');
+                data.segments.forEach(s => {
+                    printWindow.document.write('<div class="segment"><span class="seg-time">[' +
+                        formatTime(s.start) + ' -> ' + formatTime(s.end) +
+                        ']</span> ' + escHtml(s.text) + '</div>');
+                });
+            }
+
+            printWindow.document.write('<script>window.onload=function(){window.print();}<\/script>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+        }
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return m.toString().padStart(2, '0') + ':' + sec.toString().padStart(2, '0');
+        }
+        function escHtml(t) {
+            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+    </script>
+</body>
+</html>

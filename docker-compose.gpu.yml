@@ -1,0 +1,24 @@
+services:
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - whisper-models:/models
+    environment:
+      - WHISPER_MODEL=large-v3
+      - WHISPER_DEVICE=auto
+      - WHISPER_COMPUTE_TYPE=auto
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  whisper-models:

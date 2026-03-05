@@ -1,0 +1,8 @@
+venv/
+models/
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+ssh_cmd.py
+upload_to_vps.py
