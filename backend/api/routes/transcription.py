@@ -38,7 +38,9 @@ async def transcribe(
 
     suffix = os.path.splitext(file.filename)[1] or ".wav"
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp.write(await file.read())
+        # Lecture par chunks pour supporter les gros fichiers (évite surcharge mémoire)
+        while chunk := await file.read(1024 * 1024):  # 1 MB chunks
+            tmp.write(chunk)
         tmp_path = tmp.name
 
     # Créer l'entrée DB
@@ -63,6 +65,9 @@ async def transcribe(
         start_time = time.time()
         vad_json = None
         try:
+            # Heartbeat pour maintenir la connexion pendant le traitement
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Analyse audio...'}, ensure_ascii=False)}\n\n"
+
             # --- Étape 1 : Pré-traitement VAD ---
             if config.ENABLE_VAD and vad.is_loaded():
                 try:

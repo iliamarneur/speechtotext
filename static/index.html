@@ -277,7 +277,7 @@
     let currentRoute = '';
 
     function navigate(hash) {
-        if (!hash || hash === '#') hash = '#/';
+        if (!hash || hash === '#') hash = '#/upload';
         window.location.hash = hash;
     }
 
@@ -285,7 +285,7 @@
     window.addEventListener('load', () => handleRoute());
 
     function handleRoute() {
-        const hash = window.location.hash || '#/';
+        const hash = window.location.hash || '#/upload';
         const [path, qs] = hash.slice(1).split('?');
         const params = new URLSearchParams(qs || '');
 
