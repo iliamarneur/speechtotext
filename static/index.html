@@ -11,319 +11,549 @@
             background: #0f172a;
             color: #e2e8f0;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            padding: 2rem 1rem;
-        }
-        .container { width: 100%; max-width: 700px; }
-        h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.3rem; color: #f8fafc; }
-        .subtitle { color: #94a3b8; margin-bottom: 1.2rem; font-size: 0.95rem; }
-
-        /* Status banner */
-        .status-banner {
-            padding: 0.8rem 1rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-        }
-        .status-banner.loading {
-            background: #1e3a5f;
-            border: 1px solid #2563eb;
-            color: #93c5fd;
-        }
-        .status-banner.ready {
-            background: #14532d;
-            border: 1px solid #16a34a;
-            color: #86efac;
-        }
-        .status-spinner {
-            display: inline-block;
-            width: 16px; height: 16px;
-            border: 2px solid #334155;
-            border-top-color: #3b82f6;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            flex-shrink: 0;
-        }
-        .status-dot {
-            width: 10px; height: 10px;
-            background: #22c55e;
-            border-radius: 50%;
-            flex-shrink: 0;
         }
 
-        .card {
+        /* Navbar */
+        .navbar {
+            position: sticky; top: 0; z-index: 100;
             background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #334155;
+            padding: 0 1.5rem;
+            display: flex; align-items: center; gap: 1.5rem;
+            height: 56px;
         }
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            font-size: 0.9rem;
-            color: #cbd5e1;
+        .navbar .logo {
+            font-size: 1.1rem; font-weight: 700; color: #f8fafc;
+            text-decoration: none; margin-right: 1rem;
         }
-
-        /* Drop zone */
-        .drop-zone {
-            border: 2px dashed #475569;
-            border-radius: 10px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: border-color 0.2s, background 0.2s;
-            margin-bottom: 1rem;
+        .navbar a {
+            color: #94a3b8; text-decoration: none; font-size: 0.9rem;
+            padding: 0.4rem 0.8rem; border-radius: 6px; transition: all 0.2s;
         }
-        .drop-zone:hover, .drop-zone.dragover {
-            border-color: #3b82f6;
-            background: rgba(59, 130, 246, 0.05);
+        .navbar a:hover, .navbar a.active { color: #e2e8f0; background: #334155; }
+        .navbar .spacer { flex: 1; }
+        .navbar .search-bar {
+            display: flex; align-items: center; gap: 0.5rem;
         }
-        .drop-zone p { color: #94a3b8; }
-        .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
-        .file-name {
-            margin-top: 0.5rem;
-            color: #3b82f6;
-            font-weight: 600;
-            word-break: break-all;
+        .navbar .search-bar input {
+            background: #0f172a; border: 1px solid #334155; border-radius: 6px;
+            padding: 0.4rem 0.7rem; color: #e2e8f0; font-size: 0.85rem; width: 200px;
         }
 
-        select {
-            width: 100%;
-            padding: 0.6rem 0.8rem;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            color: #e2e8f0;
-            font-size: 0.95rem;
-            margin-bottom: 1rem;
+        .main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+        /* Cards */
+        .card {
+            background: #1e293b; border: 1px solid #334155;
+            border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
         }
 
+        /* Stat cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+            padding: 1.2rem; text-align: center;
+        }
+        .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: #3b82f6; }
+        .stat-card .stat-label { font-size: 0.8rem; color: #94a3b8; margin-top: 0.3rem; }
+
+        /* Filters */
+        .filters {
+            display: flex; gap: 0.8rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center;
+        }
+        .filters select, .filters input {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            padding: 0.5rem 0.7rem; color: #e2e8f0; font-size: 0.85rem;
+        }
+        .filters select { min-width: 130px; }
+        .filters input { flex: 1; min-width: 150px; }
+
+        /* Table */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%; border-collapse: collapse; font-size: 0.85rem;
+        }
+        th {
+            text-align: left; padding: 0.7rem 0.8rem; color: #94a3b8;
+            border-bottom: 1px solid #334155; font-weight: 600; white-space: nowrap;
+        }
+        td {
+            padding: 0.7rem 0.8rem; border-bottom: 1px solid #1e293b;
+            max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        tr:hover td { background: rgba(59,130,246,0.05); }
+        .badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .badge-completed { background: #14532d; color: #86efac; }
+        .badge-processing { background: #1e3a5f; color: #93c5fd; }
+        .badge-error { background: #7f1d1d; color: #fca5a5; }
+        .badge-pending { background: #334155; color: #94a3b8; }
+
+        /* Pagination */
+        .pagination {
+            display: flex; justify-content: center; align-items: center;
+            gap: 0.5rem; margin-top: 1rem;
+        }
+        .pagination button {
+            padding: 0.4rem 0.8rem; background: #334155; color: #e2e8f0;
+            border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+        }
+        .pagination button:hover { background: #475569; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination span { color: #94a3b8; font-size: 0.85rem; }
+
+        /* Buttons */
         .btn {
-            width: 100%;
-            padding: 0.8rem;
-            background: #3b82f6;
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
+            padding: 0.6rem 1.2rem; background: #3b82f6; color: #fff;
+            border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 0.4rem;
         }
         .btn:hover { background: #2563eb; }
         .btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.8rem; border-radius: 6px; }
+        .btn-secondary { background: #334155; }
+        .btn-secondary:hover { background: #475569; }
+        .btn-success { background: #16a34a; }
+        .btn-success:hover { background: #15803d; }
 
-        /* Progress bar */
-        .progress-container {
-            display: none;
-            margin-top: 1.2rem;
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; font-size: 0.9rem; color: #cbd5e1; }
+
+        /* Drop zone */
+        .drop-zone {
+            border: 2px dashed #475569; border-radius: 10px; padding: 2rem;
+            text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 1rem;
         }
+        .drop-zone:hover, .drop-zone.dragover { border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+        .drop-zone p { color: #94a3b8; }
+        .drop-zone .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .file-name { margin-top: 0.5rem; color: #3b82f6; font-weight: 600; word-break: break-all; }
+
+        select.full {
+            width: 100%; padding: 0.6rem 0.8rem; background: #0f172a;
+            border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;
+            font-size: 0.95rem; margin-bottom: 1rem;
+        }
+
+        /* Progress */
+        .progress-container { display: none; margin-top: 1.2rem; }
         .progress-container.active { display: block; }
-        .progress-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-            font-size: 0.85rem;
-        }
+        .progress-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.85rem; }
         .progress-label { color: #94a3b8; }
         .progress-percent { color: #3b82f6; font-weight: 700; font-size: 1rem; }
         .progress-bar-track {
-            width: 100%;
-            height: 12px;
-            background: #0f172a;
-            border-radius: 6px;
-            overflow: hidden;
-            border: 1px solid #334155;
+            width: 100%; height: 12px; background: #0f172a;
+            border-radius: 6px; overflow: hidden; border: 1px solid #334155;
         }
         .progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-            border-radius: 6px;
-            transition: width 0.3s ease;
-            position: relative;
+            height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 6px; transition: width 0.3s ease; position: relative;
         }
         .progress-bar-fill::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
             animation: shimmer 1.5s ease-in-out infinite;
         }
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-        .progress-detail {
-            margin-top: 0.5rem;
-            font-size: 0.8rem;
-            color: #64748b;
-            min-height: 1.2em;
-        }
+        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+        .progress-detail { margin-top: 0.5rem; font-size: 0.8rem; color: #64748b; }
         .progress-live-text {
-            margin-top: 0.8rem;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 0.8rem;
-            font-size: 0.85rem;
-            color: #94a3b8;
-            max-height: 120px;
-            overflow-y: auto;
-            line-height: 1.5;
-            font-style: italic;
+            margin-top: 0.8rem; background: #0f172a; border: 1px solid #334155;
+            border-radius: 8px; padding: 0.8rem; font-size: 0.85rem; color: #94a3b8;
+            max-height: 120px; overflow-y: auto; line-height: 1.5; font-style: italic;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Status banner */
+        .status-banner {
+            padding: 0.8rem 1rem; border-radius: 10px; margin-bottom: 1.5rem;
+            font-size: 0.9rem; display: flex; align-items: center; gap: 0.6rem;
+        }
+        .status-banner.loading { background: #1e3a5f; border: 1px solid #2563eb; color: #93c5fd; }
+        .status-banner.ready { background: #14532d; border: 1px solid #16a34a; color: #86efac; }
+        .status-spinner {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid #334155; border-top-color: #3b82f6;
+            border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0;
+        }
+        .status-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; flex-shrink: 0; }
 
         /* Result */
         .result { display: none; }
         .result.active { display: block; }
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.8rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-        .result-meta { font-size: 0.8rem; color: #64748b; }
-        .result-actions { display: flex; gap: 0.5rem; }
-        .btn-action {
-            padding: 0.4rem 0.8rem;
-            background: #334155;
-            color: #e2e8f0;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-action:hover { background: #475569; }
-        .btn-action.pdf { background: #7c3aed; }
-        .btn-action.pdf:hover { background: #6d28d9; }
-
         textarea.result-text {
-            width: 100%;
-            min-height: 200px;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            color: #e2e8f0;
-            padding: 1rem;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            resize: vertical;
-            font-family: inherit;
+            width: 100%; min-height: 200px; background: #0f172a;
+            border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;
+            padding: 1rem; font-size: 0.95rem; line-height: 1.6; resize: vertical; font-family: inherit;
         }
+        .error-msg {
+            display: none; background: #7f1d1d; border: 1px solid #991b1b;
+            color: #fca5a5; padding: 1rem; border-radius: 8px; margin-top: 1rem;
+        }
+        .error-msg.active { display: block; }
 
-        .segments-toggle {
-            margin-top: 1rem;
-            cursor: pointer;
-            color: #3b82f6;
-            font-size: 0.85rem;
-            user-select: none;
-        }
+        /* Detail view */
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+        .meta-table { width: 100%; font-size: 0.85rem; }
+        .meta-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #334155; }
+        .meta-table td:first-child { color: #94a3b8; font-weight: 600; width: 45%; }
+
+        /* Segments list */
         .segments-list {
-            display: none;
-            margin-top: 0.8rem;
-            max-height: 300px;
-            overflow-y: auto;
-            font-size: 0.85rem;
+            max-height: 500px; overflow-y: auto; font-size: 0.85rem;
         }
-        .segments-list.active { display: block; }
-        .segment { padding: 0.5rem 0; border-bottom: 1px solid #1e293b; }
-        .seg-time { color: #3b82f6; font-weight: 600; margin-right: 0.5rem; }
+        .segment-item {
+            padding: 0.6rem 0.8rem; border-bottom: 1px solid #1e293b;
+            cursor: pointer; transition: background 0.15s; display: flex; gap: 0.5rem;
+        }
+        .segment-item:hover { background: rgba(59,130,246,0.08); }
+        .seg-time { color: #3b82f6; font-weight: 600; white-space: nowrap; min-width: 100px; }
+        .seg-text { flex: 1; }
+        .seg-text[contenteditable="true"] { outline: 1px solid #3b82f6; border-radius: 4px; padding: 2px 4px; }
 
-        .error {
-            display: none;
-            background: #7f1d1d;
-            border: 1px solid #991b1b;
-            color: #fca5a5;
-            padding: 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
+        /* Export buttons */
+        .export-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+        /* Quality stars */
+        .stars { display: inline-flex; gap: 0.2rem; cursor: pointer; }
+        .stars span { font-size: 1.3rem; color: #475569; transition: color 0.15s; }
+        .stars span.active { color: #eab308; }
+        .stars span:hover { color: #facc15; }
+
+        /* Notes */
+        textarea.notes-input {
+            width: 100%; min-height: 60px; background: #0f172a;
+            border: 1px solid #334155; border-radius: 8px; color: #e2e8f0;
+            padding: 0.6rem; font-size: 0.85rem; resize: vertical; font-family: inherit;
+            margin-top: 0.5rem;
         }
-        .error.active { display: block; }
+
+        /* Search results */
+        .search-result {
+            padding: 1rem; border-bottom: 1px solid #334155; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .search-result:hover { background: rgba(59,130,246,0.05); }
+        .search-result .sr-file { font-weight: 600; color: #e2e8f0; }
+        .search-result .sr-time { color: #3b82f6; font-size: 0.8rem; margin: 0.2rem 0; }
+        .search-result .sr-text { color: #94a3b8; font-size: 0.9rem; }
+
+        /* Audio player */
+        audio { width: 100%; margin: 0.8rem 0; border-radius: 8px; }
+
+        .empty-state {
+            text-align: center; padding: 3rem 1rem; color: #64748b;
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .link { color: #3b82f6; cursor: pointer; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+
+        .mb-1 { margin-bottom: 0.5rem; }
+        .mb-2 { margin-bottom: 1rem; }
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Transcription Audio</h1>
-        <p class="subtitle">Whisper — transcription locale, gratuite et open source</p>
-
-        <!-- Status banner -->
-        <div class="status-banner loading" id="statusBanner">
-            <span class="status-spinner"></span>
-            <span id="statusText">Chargement du modele en cours, veuillez patienter...</span>
+    <nav class="navbar">
+        <a href="#/" class="logo">Transcription Audio</a>
+        <a href="#/" data-nav="dashboard">Dashboard</a>
+        <a href="#/upload" data-nav="upload">Transcrire</a>
+        <span class="spacer"></span>
+        <div class="search-bar">
+            <input type="text" id="navSearch" placeholder="Rechercher..." />
         </div>
+    </nav>
 
-        <div class="card">
-            <label>Fichier audio</label>
-            <div class="drop-zone" id="dropZone">
-                <div class="icon">&#127908;</div>
-                <p>Cliquez ou glissez un fichier audio ici</p>
-                <p style="font-size:0.8rem; margin-top:0.3rem;">(MP3, WAV, M4A, OGG, FLAC...)</p>
-                <div class="file-name" id="fileName"></div>
-                <input type="file" id="fileInput" accept="audio/*" hidden>
-            </div>
-
-            <label for="language">Langue</label>
-            <select id="language">
-                <option value="fr" selected>Francais</option>
-                <option value="en">English</option>
-                <option value="de">Deutsch</option>
-                <option value="es">Espanol</option>
-                <option value="it">Italiano</option>
-                <option value="pt">Portugues</option>
-                <option value="nl">Nederlands</option>
-                <option value="ar">العربية</option>
-                <option value="">Auto-detection</option>
-            </select>
-
-            <button class="btn" id="btnTranscribe" disabled>Transcrire</button>
-
-            <!-- Progress bar -->
-            <div class="progress-container" id="progressContainer">
-                <div class="progress-header">
-                    <span class="progress-label">Transcription en cours...</span>
-                    <span class="progress-percent" id="progressPercent">0%</span>
-                </div>
-                <div class="progress-bar-track">
-                    <div class="progress-bar-fill" id="progressBar"></div>
-                </div>
-                <div class="progress-detail" id="progressDetail"></div>
-                <div class="progress-live-text" id="liveText"></div>
-            </div>
-
-            <div class="error" id="error"></div>
-        </div>
-
-        <div class="card result" id="result">
-            <div class="result-header">
-                <div>
-                    <label style="margin:0;">Resultat</label>
-                    <div class="result-meta" id="resultMeta"></div>
-                </div>
-                <div class="result-actions">
-                    <button class="btn-action" id="btnCopy">Copier</button>
-                    <button class="btn-action pdf" id="btnPdf">Telecharger PDF</button>
-                </div>
-            </div>
-            <textarea class="result-text" id="resultText" readonly></textarea>
-            <div class="segments-toggle" id="segToggle">&#9660; Afficher les segments horodates</div>
-            <div class="segments-list" id="segList"></div>
-        </div>
-    </div>
+    <div class="main" id="app"></div>
 
     <script>
+    // --- SPA Router ---
+    const app = document.getElementById('app');
+    let currentRoute = '';
+
+    function navigate(hash) {
+        if (!hash || hash === '#') hash = '#/';
+        window.location.hash = hash;
+    }
+
+    window.addEventListener('hashchange', () => handleRoute());
+    window.addEventListener('load', () => handleRoute());
+
+    function handleRoute() {
+        const hash = window.location.hash || '#/';
+        const [path, qs] = hash.slice(1).split('?');
+        const params = new URLSearchParams(qs || '');
+
+        // Update navbar active state
+        document.querySelectorAll('.navbar a[data-nav]').forEach(a => {
+            a.classList.toggle('active',
+                (a.dataset.nav === 'dashboard' && (path === '/' || path === '')) ||
+                (a.dataset.nav === 'upload' && path === '/upload')
+            );
+        });
+
+        if (path === '/' || path === '') {
+            renderDashboard(app);
+        } else if (path === '/upload') {
+            renderUpload(app);
+        } else if (path.match(/^\/transcriptions\/(\d+)$/)) {
+            const id = path.match(/^\/transcriptions\/(\d+)$/)[1];
+            renderDetail(app, id);
+        } else if (path === '/search') {
+            renderSearch(app, params.get('q') || '');
+        } else {
+            renderDashboard(app);
+        }
+    }
+
+    // --- Navbar search ---
+    document.getElementById('navSearch').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && e.target.value.trim()) {
+            navigate('#/search?q=' + encodeURIComponent(e.target.value.trim()));
+        }
+    });
+
+    // --- API helpers ---
+    async function api(url, options = {}) {
+        const resp = await fetch(url, options);
+        if (!resp.ok) {
+            const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+            throw new Error(err.detail || resp.statusText);
+        }
+        return resp.json();
+    }
+
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return m.toString().padStart(2,'0') + ':' + sec.toString().padStart(2,'0');
+    }
+
+    function formatMs(ms) {
+        if (!ms) return '-';
+        if (ms < 1000) return ms + 'ms';
+        return (ms / 1000).toFixed(1) + 's';
+    }
+
+    function formatDuration(sec) {
+        if (!sec) return '-';
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        if (h > 0) return h + 'h ' + m + 'min';
+        if (m > 0) return m + 'min ' + s + 's';
+        return s + 's';
+    }
+
+    function formatDate(d) {
+        if (!d) return '-';
+        try {
+            const date = new Date(d + 'Z');
+            return date.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        } catch { return d; }
+    }
+
+    function escHtml(t) {
+        if (!t) return '';
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function badgeClass(status) {
+        return 'badge badge-' + (status || 'pending');
+    }
+
+    // ========================
+    // VIEW: Dashboard
+    // ========================
+    async function renderDashboard(container) {
+        container.innerHTML = `
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card"><div class="stat-value" id="statMinutes">-</div><div class="stat-label">Minutes ce mois</div></div>
+                <div class="stat-card"><div class="stat-value" id="statCount">-</div><div class="stat-label">Transcriptions</div></div>
+                <div class="stat-card"><div class="stat-value" id="statTotal">-</div><div class="stat-label">Duree totale</div></div>
+                <div class="stat-card"><div class="stat-value" id="statAvg">-</div><div class="stat-label">Temps moyen</div></div>
+            </div>
+            <div class="card">
+                <div class="filters">
+                    <select id="filterStatus">
+                        <option value="">Tous les statuts</option>
+                        <option value="completed">Termine</option>
+                        <option value="processing">En cours</option>
+                        <option value="error">Erreur</option>
+                    </select>
+                    <select id="filterPeriod">
+                        <option value="7d">7 derniers jours</option>
+                        <option value="30d" selected>30 derniers jours</option>
+                        <option value="all">Tout</option>
+                    </select>
+                    <input type="text" id="filterSearch" placeholder="Filtrer par nom..." />
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fichier</th>
+                                <th>Duree</th>
+                                <th>Langue</th>
+                                <th>Modele</th>
+                                <th>Statut</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transcriptionsBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+                <div class="empty-state" id="emptyState" style="display:none;">
+                    <div class="icon">&#128196;</div>
+                    <p>Aucune transcription pour le moment.</p>
+                    <p class="mt-1"><a href="#/upload" class="link">Transcrire un fichier audio</a></p>
+                </div>
+            </div>
+        `;
+
+        let page = 1;
+        const perPage = 15;
+
+        async function loadStats() {
+            try {
+                const period = document.getElementById('filterPeriod').value;
+                const stats = await api('/api/stats?period=' + period);
+                document.getElementById('statMinutes').textContent = Math.round((stats.period_duration_sec || 0) / 60);
+                document.getElementById('statCount').textContent = stats.period_count || 0;
+                document.getElementById('statTotal').textContent = formatDuration(stats.total_duration_sec);
+                document.getElementById('statAvg').textContent = formatMs(stats.period_avg_processing_ms);
+            } catch {}
+        }
+
+        async function loadList() {
+            try {
+                const status = document.getElementById('filterStatus').value;
+                const period = document.getElementById('filterPeriod').value;
+                const params = new URLSearchParams({ page, per_page: perPage });
+                if (status) params.set('status', status);
+                if (period && period !== 'all') params.set('period', period);
+
+                const data = await api('/api/transcriptions?' + params);
+                const tbody = document.getElementById('transcriptionsBody');
+                const filterVal = (document.getElementById('filterSearch').value || '').toLowerCase();
+
+                let items = data.items;
+                if (filterVal) {
+                    items = items.filter(t => (t.filename || '').toLowerCase().includes(filterVal));
+                }
+
+                if (items.length === 0 && page === 1) {
+                    tbody.innerHTML = '';
+                    document.getElementById('emptyState').style.display = '';
+                    document.getElementById('pagination').innerHTML = '';
+                    return;
+                }
+                document.getElementById('emptyState').style.display = 'none';
+
+                tbody.innerHTML = items.map(t => `
+                    <tr>
+                        <td title="${escHtml(t.filename)}">${escHtml(t.filename)}</td>
+                        <td>${t.duration_sec ? formatDuration(t.duration_sec) : '-'}</td>
+                        <td>${t.language || '-'}</td>
+                        <td>${escHtml(t.model_name || '-')}${t.device ? ' <span style="color:#64748b;font-size:0.75rem;">(' + escHtml(t.device) + ')</span>' : ''}</td>
+                        <td><span class="${badgeClass(t.status)}">${escHtml(t.status)}</span></td>
+                        <td>${formatDate(t.created_at)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="navigate('#/transcriptions/${t.id}')">Ouvrir</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                // Pagination
+                const pagEl = document.getElementById('pagination');
+                pagEl.innerHTML = `
+                    <button ${page<=1?'disabled':''} onclick="window._dashPrev()">Precedent</button>
+                    <span>Page ${data.page} / ${data.pages}</span>
+                    <button ${page>=data.pages?'disabled':''} onclick="window._dashNext()">Suivant</button>
+                `;
+                window._dashPrev = () => { if(page>1){page--;loadList();} };
+                window._dashNext = () => { if(page<data.pages){page++;loadList();} };
+            } catch (e) {
+                console.error('Error loading list:', e);
+            }
+        }
+
+        // Attach filter listeners
+        document.getElementById('filterStatus').addEventListener('change', () => { page=1; loadList(); });
+        document.getElementById('filterPeriod').addEventListener('change', () => { page=1; loadList(); loadStats(); });
+        document.getElementById('filterSearch').addEventListener('input', () => loadList());
+
+        loadStats();
+        loadList();
+    }
+
+    // ========================
+    // VIEW: Upload / Transcribe
+    // ========================
+    function renderUpload(container) {
+        container.innerHTML = `
+            <div class="status-banner loading" id="statusBanner">
+                <span class="status-spinner"></span>
+                <span id="statusText">Chargement du modele en cours, veuillez patienter...</span>
+            </div>
+            <div class="card">
+                <label>Fichier audio</label>
+                <div class="drop-zone" id="dropZone">
+                    <div class="icon">&#127908;</div>
+                    <p>Cliquez ou glissez un fichier audio ici</p>
+                    <p style="font-size:0.8rem; margin-top:0.3rem;">(MP3, WAV, M4A, OGG, FLAC...)</p>
+                    <div class="file-name" id="fileName"></div>
+                    <input type="file" id="fileInput" accept="audio/*" hidden>
+                </div>
+                <label for="language">Langue</label>
+                <select class="full" id="language">
+                    <option value="fr" selected>Francais</option>
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="es">Espanol</option>
+                    <option value="it">Italiano</option>
+                    <option value="pt">Portugues</option>
+                    <option value="nl">Nederlands</option>
+                    <option value="ar">&#1575;&#1604;&#1593;&#1585;&#1576;&#1610;&#1577;</option>
+                    <option value="">Auto-detection</option>
+                </select>
+                <button class="btn" id="btnTranscribe" disabled style="width:100%;">Transcrire</button>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-header">
+                        <span class="progress-label">Transcription en cours...</span>
+                        <span class="progress-percent" id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
+                    <div class="progress-detail" id="progressDetail"></div>
+                    <div class="progress-live-text" id="liveText"></div>
+                </div>
+                <div class="error-msg" id="errorMsg"></div>
+            </div>
+            <div class="card result" id="resultCard">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                    <div>
+                        <label style="margin:0;">Resultat</label>
+                        <div style="font-size:0.8rem;color:#64748b;" id="resultMeta"></div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button class="btn btn-sm btn-secondary" id="btnCopy">Copier</button>
+                        <button class="btn btn-sm" style="background:#7c3aed;" id="btnPdf">Telecharger PDF</button>
+                        <button class="btn btn-sm btn-success" id="btnViewDetail" style="display:none;">Voir les details</button>
+                    </div>
+                </div>
+                <textarea class="result-text" id="resultText" readonly></textarea>
+            </div>
+        `;
+
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const fileName = document.getElementById('fileName');
@@ -333,57 +563,50 @@
         const progressPercent = document.getElementById('progressPercent');
         const progressDetail = document.getElementById('progressDetail');
         const liveText = document.getElementById('liveText');
-        const errorEl = document.getElementById('error');
-        const result = document.getElementById('result');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultCard = document.getElementById('resultCard');
         const resultText = document.getElementById('resultText');
         const resultMeta = document.getElementById('resultMeta');
         const btnCopy = document.getElementById('btnCopy');
-        const btnPdf = document.getElementById('btnPdf');
-        const segToggle = document.getElementById('segToggle');
-        const segList = document.getElementById('segList');
+        const btnViewDetail = document.getElementById('btnViewDetail');
         const statusBanner = document.getElementById('statusBanner');
 
         let selectedFile = null;
-        let lastResult = null;
 
-        // --- Check model readiness ---
+        // Health check
         async function checkHealth() {
             try {
                 const resp = await fetch('/health');
                 const data = await resp.json();
                 if (data.ready) {
                     statusBanner.className = 'status-banner ready';
-                    statusBanner.innerHTML = '<span class="status-dot"></span> Modele "' + data.model + '" pret — vous pouvez transcrire';
+                    statusBanner.innerHTML = '<span class="status-dot"></span> Modele "' + escHtml(data.model) + '" pret';
                     return true;
                 }
-            } catch (e) {}
+            } catch {}
             return false;
         }
-
         async function pollHealth() {
-            const ready = await checkHealth();
-            if (!ready) setTimeout(pollHealth, 3000);
+            if (!(await checkHealth())) setTimeout(pollHealth, 3000);
         }
         pollHealth();
 
-        // --- Drop zone ---
+        // Drop zone
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
         dropZone.addEventListener('drop', e => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
+            e.preventDefault(); dropZone.classList.remove('dragover');
             if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
         });
         fileInput.addEventListener('change', () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
 
         function setFile(f) {
             selectedFile = f;
-            fileName.textContent = f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' Mo)';
+            fileName.textContent = f.name + ' (' + (f.size/1024/1024).toFixed(1) + ' Mo)';
             btnTranscribe.disabled = false;
         }
 
-        // --- Progress helpers ---
         function setProgress(pct, detail) {
             progressBar.style.width = pct + '%';
             progressPercent.textContent = Math.round(pct) + '%';
@@ -396,15 +619,12 @@
             liveText.scrollTop = liveText.scrollHeight;
         }
 
-        // --- Transcription with SSE streaming ---
+        // Transcribe
         btnTranscribe.addEventListener('click', async () => {
             if (!selectedFile) return;
-
             btnTranscribe.disabled = true;
-            errorEl.classList.remove('active');
-            result.classList.remove('active');
-
-            // Reset & show progress
+            errorMsg.classList.remove('active');
+            resultCard.classList.remove('active');
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
             liveText.textContent = '';
@@ -420,7 +640,6 @@
                     throw new Error(err.detail || resp.statusText);
                 }
 
-                // Read SSE stream
                 const reader = resp.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
@@ -428,73 +647,49 @@
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
-                    buffer = lines.pop(); // keep incomplete line
+                    buffer = lines.pop();
 
                     for (const line of lines) {
                         if (!line.startsWith('data: ')) continue;
                         const jsonStr = line.slice(6);
                         if (!jsonStr) continue;
-
                         const event = JSON.parse(jsonStr);
 
                         if (event.type === 'progress') {
-                            setProgress(
-                                event.progress,
-                                'Segment [' + formatTime(event.segment.start) + ' -> ' + formatTime(event.segment.end) + ']'
-                            );
+                            setProgress(event.progress,
+                                'Segment [' + formatTime(event.segment.start) + ' -> ' + formatTime(event.segment.end) + ']');
                             appendLiveText(event.segment.text);
-                        }
-                        else if (event.type === 'result') {
+                        } else if (event.type === 'result') {
                             setProgress(100, 'Termine !');
-                            lastResult = event;
-                            lastResult.fileName = selectedFile.name;
-                            // Small delay so user sees 100%
+                            lastResultData = { text: event.text, language: event.language, duration: event.duration, fileName: selectedFile.name };
                             setTimeout(() => {
                                 progressContainer.classList.remove('active');
-                                showResult(event);
+                                resultText.value = event.text;
+                                resultMeta.textContent = 'Langue : ' + event.language +
+                                    ' (' + (event.language_probability*100).toFixed(0) + '%) — Duree : ' + formatTime(event.duration);
+                                resultCard.classList.add('active');
+                                if (event.transcription_id) {
+                                    btnViewDetail.style.display = '';
+                                    btnViewDetail.onclick = () => navigate('#/transcriptions/' + event.transcription_id);
+                                }
                             }, 500);
-                        }
-                        else if (event.type === 'error') {
+                        } else if (event.type === 'error') {
                             throw new Error(event.message);
                         }
                     }
                 }
             } catch (e) {
                 progressContainer.classList.remove('active');
-                errorEl.textContent = 'Erreur : ' + e.message;
-                errorEl.classList.add('active');
+                errorMsg.textContent = 'Erreur : ' + e.message;
+                errorMsg.classList.add('active');
             } finally {
                 btnTranscribe.disabled = false;
             }
         });
 
-        function showResult(data) {
-            resultText.value = data.text;
-            resultMeta.textContent = 'Langue : ' + data.language + ' (' + (data.language_probability * 100).toFixed(0) + '%) — Duree : ' + formatTime(data.duration);
-            result.classList.add('active');
-
-            segList.innerHTML = '';
-            segList.classList.remove('active');
-            segToggle.innerHTML = '&#9660; Afficher les segments horodates';
-            if (data.segments && data.segments.length) {
-                data.segments.forEach(s => {
-                    const div = document.createElement('div');
-                    div.className = 'segment';
-                    div.innerHTML = '<span class="seg-time">[' + formatTime(s.start) + ' -> ' + formatTime(s.end) + ']</span>' + escHtml(s.text);
-                    segList.appendChild(div);
-                });
-            }
-        }
-
-        segToggle.addEventListener('click', () => {
-            const open = segList.classList.toggle('active');
-            segToggle.innerHTML = open ? '&#9650; Masquer les segments' : '&#9660; Afficher les segments horodates';
-        });
-
-        // --- Copy ---
+        // Copy
         btnCopy.addEventListener('click', () => {
             navigator.clipboard.writeText(resultText.value).then(() => {
                 btnCopy.textContent = 'Copie !';
@@ -502,56 +697,256 @@
             });
         });
 
-        // --- PDF Export ---
+        // PDF
+        let lastResultData = null;
+        const btnPdf = document.getElementById('btnPdf');
         btnPdf.addEventListener('click', () => {
-            if (!lastResult) return;
-            generatePDF(lastResult);
+            if (lastResultData) generatePDF(lastResultData);
+        });
+    }
+
+    // ========================
+    // VIEW: Detail
+    // ========================
+    async function renderDetail(container, id) {
+        container.innerHTML = '<div class="card"><p style="color:#94a3b8;">Chargement...</p></div>';
+
+        let data;
+        try {
+            data = await api('/api/transcriptions/' + id);
+        } catch (e) {
+            container.innerHTML = '<div class="card"><p style="color:#fca5a5;">Erreur : ' + escHtml(e.message) + '</p></div>';
+            return;
+        }
+
+        const segments = data.segments || [];
+        const fullText = segments.map(s => s.text).join(' ');
+        const hasAudio = !!data.audio_path;
+        const ratio = data.duration_sec && data.processing_ms
+            ? (data.processing_ms / 1000 / data.duration_sec).toFixed(2) + 'x'
+            : '-';
+
+        container.innerHTML = `
+            <div style="margin-bottom:1rem;">
+                <a href="#/" class="link">&larr; Retour au dashboard</a>
+            </div>
+            <div class="detail-grid">
+                <div>
+                    <div class="card">
+                        <h3 style="margin-bottom:1rem;color:#f8fafc;">${escHtml(data.filename)}</h3>
+                        <table class="meta-table">
+                            <tr><td>Duree audio</td><td>${data.duration_sec ? formatDuration(data.duration_sec) : '-'}</td></tr>
+                            <tr><td>Langue</td><td>${escHtml(data.language || '-')}${data.language_detected ? ' (' + (data.language_detected*100).toFixed(0) + '%)' : ''}</td></tr>
+                            <tr><td>Modele</td><td>${escHtml(data.model_name || '-')}</td></tr>
+                            <tr><td>Device</td><td>${escHtml(data.device || '-')}</td></tr>
+                            <tr><td>Compute type</td><td>${escHtml(data.compute_type || '-')}</td></tr>
+                            <tr><td>Temps traitement</td><td>${formatMs(data.processing_ms)}</td></tr>
+                            <tr><td>Ratio temps reel</td><td>${ratio}</td></tr>
+                            <tr><td>Mots</td><td>${data.word_count || '-'}</td></tr>
+                            <tr><td>Statut</td><td><span class="${badgeClass(data.status)}">${escHtml(data.status)}</span></td></tr>
+                            <tr><td>Date</td><td>${formatDate(data.created_at)}</td></tr>
+                        </table>
+
+                        ${hasAudio ? '<audio controls id="audioPlayer"><source src="/api/audio/' + id + '"></audio>' : ''}
+
+                        <div class="mt-2">
+                            <label>Qualite</label>
+                            <div class="stars" id="starsWidget">
+                                ${[1,2,3,4,5].map(n => `<span data-val="${n}" class="${(data.quality_score||0) >= n ? 'active' : ''}">&starf;</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="mt-1">
+                            <label>Notes</label>
+                            <textarea class="notes-input" id="notesInput" placeholder="Ajoutez des notes...">${escHtml(data.notes || '')}</textarea>
+                            <button class="btn btn-sm btn-secondary mt-1" id="btnSaveNotes">Sauvegarder</button>
+                        </div>
+                        <div class="export-btns">
+                            <button class="btn btn-sm" style="background:#7c3aed;" id="btnDetailPdf">PDF</button>
+                            <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'txt')">TXT</button>
+                            <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'srt')">SRT</button>
+                            <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'vtt')">VTT</button>
+                            <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'json')">JSON</button>
+                            <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'md')">Markdown</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <label>Segments (${segments.length})</label>
+                        <div class="segments-list" id="segmentsList">
+                            ${segments.length === 0 ? '<p style="color:#64748b;">Aucun segment disponible.</p>' :
+                            segments.map(s => `
+                                <div class="segment-item" data-id="${s.id}" data-start="${s.start_ms}">
+                                    <span class="seg-time">[${formatTime(s.start_ms/1000)} -> ${formatTime(s.end_ms/1000)}]</span>
+                                    <span class="seg-text" data-seg-id="${s.id}">${escHtml(s.text)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // PDF from detail
+        document.getElementById('btnDetailPdf').addEventListener('click', () => {
+            generatePDF({ filename: data.filename, language: data.language, duration_sec: data.duration_sec, text: fullText });
         });
 
-        function generatePDF(data) {
-            const now = new Date().toLocaleString('fr-FR');
-            const title = 'Transcription : ' + (data.fileName || 'audio');
-            const meta = 'Langue : ' + data.language + ' | Duree : ' + formatTime(data.duration) + ' | Date : ' + now;
-
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">');
-            printWindow.document.write('<title>' + escHtml(title) + '</title>');
-            printWindow.document.write('<style>');
-            printWindow.document.write('body { font-family: "Segoe UI", Arial, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }');
-            printWindow.document.write('h1 { font-size: 1.4rem; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; margin-bottom: 0.5rem; }');
-            printWindow.document.write('.meta { color: #666; font-size: 0.85rem; margin-bottom: 1.5rem; }');
-            printWindow.document.write('.text { line-height: 1.8; font-size: 1rem; margin-bottom: 2rem; white-space: pre-wrap; }');
-            printWindow.document.write('h2 { font-size: 1.1rem; margin-top: 2rem; margin-bottom: 0.8rem; color: #3b82f6; }');
-            printWindow.document.write('.segment { font-size: 0.85rem; line-height: 1.6; margin-bottom: 0.3rem; }');
-            printWindow.document.write('.seg-time { color: #3b82f6; font-weight: bold; }');
-            printWindow.document.write('@media print { body { margin: 1cm; } }');
-            printWindow.document.write('</style></head><body>');
-            printWindow.document.write('<h1>' + escHtml(title) + '</h1>');
-            printWindow.document.write('<div class="meta">' + escHtml(meta) + '</div>');
-            printWindow.document.write('<div class="text">' + escHtml(data.text) + '</div>');
-
-            if (data.segments && data.segments.length > 0) {
-                printWindow.document.write('<h2>Segments horodates</h2>');
-                data.segments.forEach(s => {
-                    printWindow.document.write('<div class="segment"><span class="seg-time">[' +
-                        formatTime(s.start) + ' -> ' + formatTime(s.end) +
-                        ']</span> ' + escHtml(s.text) + '</div>');
+        // Stars
+        document.getElementById('starsWidget').addEventListener('click', async (e) => {
+            const val = e.target.dataset.val;
+            if (!val) return;
+            try {
+                await api('/api/transcriptions/' + id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ quality_score: parseInt(val) })
                 });
+                document.querySelectorAll('#starsWidget span').forEach(s => {
+                    s.classList.toggle('active', parseInt(s.dataset.val) <= parseInt(val));
+                });
+            } catch {}
+        });
+
+        // Save notes
+        document.getElementById('btnSaveNotes').addEventListener('click', async () => {
+            const notes = document.getElementById('notesInput').value;
+            const btn = document.getElementById('btnSaveNotes');
+            try {
+                await api('/api/transcriptions/' + id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes })
+                });
+                btn.textContent = 'Sauvegarde !';
+                setTimeout(() => btn.textContent = 'Sauvegarder', 1500);
+            } catch {}
+        });
+
+        // Segment click = seek audio
+        if (hasAudio) {
+            document.getElementById('segmentsList').addEventListener('click', (e) => {
+                const item = e.target.closest('.segment-item');
+                if (!item) return;
+                const startMs = parseInt(item.dataset.start);
+                const audio = document.getElementById('audioPlayer');
+                if (audio) { audio.currentTime = startMs / 1000; audio.play(); }
+            });
+        }
+
+        // Double-click segment = inline edit
+        document.getElementById('segmentsList').addEventListener('dblclick', (e) => {
+            const textEl = e.target.closest('.seg-text');
+            if (!textEl || textEl.contentEditable === 'true') return;
+            textEl.contentEditable = 'true';
+            textEl.focus();
+
+            const save = async () => {
+                textEl.contentEditable = 'false';
+                const segId = textEl.dataset.segId;
+                const newText = textEl.textContent.trim();
+                try {
+                    await api('/api/transcriptions/' + id + '/segments/' + segId, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: newText })
+                    });
+                } catch {}
+            };
+            textEl.addEventListener('blur', save, { once: true });
+            textEl.addEventListener('keydown', (ke) => {
+                if (ke.key === 'Enter') { ke.preventDefault(); textEl.blur(); }
+                if (ke.key === 'Escape') { textEl.contentEditable = 'false'; }
+            });
+        });
+    }
+
+    // PDF generation (text only, no timestamps)
+    function generatePDF(data) {
+        const now = new Date().toLocaleString('fr-FR');
+        const title = 'Transcription : ' + (data.fileName || data.filename || 'audio');
+        const meta = 'Langue : ' + (data.language || '-') + ' | Duree : ' + formatDuration(data.duration || data.duration_sec || 0) + ' | Date : ' + now;
+        const w = window.open('', '_blank');
+        w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">');
+        w.document.write('<title>' + escHtml(title) + '</title>');
+        w.document.write('<style>body{font-family:"Segoe UI",Arial,sans-serif;max-width:700px;margin:2rem auto;padding:0 1rem;color:#1a1a1a;}');
+        w.document.write('h1{font-size:1.4rem;border-bottom:2px solid #3b82f6;padding-bottom:0.5rem;margin-bottom:0.5rem;}');
+        w.document.write('.meta{color:#666;font-size:0.85rem;margin-bottom:1.5rem;}');
+        w.document.write('.text{line-height:1.8;font-size:1rem;white-space:pre-wrap;}');
+        w.document.write('@media print{body{margin:1cm;}}</style></head><body>');
+        w.document.write('<h1>' + escHtml(title) + '</h1>');
+        w.document.write('<div class="meta">' + escHtml(meta) + '</div>');
+        w.document.write('<div class="text">' + escHtml(data.text) + '</div>');
+        w.document.write('<script>window.onload=function(){window.print();}<\/script>');
+        w.document.write('</body></html>');
+        w.document.close();
+    }
+
+    // Export file download
+    window.exportFile = function(id, fmt) {
+        window.open('/api/transcriptions/' + id + '/export?format=' + fmt, '_blank');
+    };
+
+    // ========================
+    // VIEW: Search
+    // ========================
+    async function renderSearch(container, query) {
+        container.innerHTML = `
+            <div class="card">
+                <label>Recherche</label>
+                <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+                    <input type="text" id="searchInput" value="${escHtml(query)}" placeholder="Rechercher dans les transcriptions..."
+                        style="flex:1;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:0.6rem;color:#e2e8f0;font-size:0.9rem;" />
+                    <button class="btn" id="btnSearch">Rechercher</button>
+                </div>
+                <div id="searchResults">
+                    ${query ? '<p style="color:#94a3b8;">Recherche en cours...</p>' : '<p style="color:#64748b;">Entrez un terme de recherche.</p>'}
+                </div>
+            </div>
+        `;
+
+        const searchInput = document.getElementById('searchInput');
+        const btnSearch = document.getElementById('btnSearch');
+
+        async function doSearch(q) {
+            if (!q) return;
+            navigate('#/search?q=' + encodeURIComponent(q));
+            const resultsEl = document.getElementById('searchResults');
+            resultsEl.innerHTML = '<p style="color:#94a3b8;">Recherche en cours...</p>';
+
+            try {
+                const data = await api('/api/search?q=' + encodeURIComponent(q));
+                if (data.results.length === 0) {
+                    resultsEl.innerHTML = '<p style="color:#64748b;">Aucun resultat pour "' + escHtml(q) + '".</p>';
+                    return;
+                }
+                resultsEl.innerHTML = data.results.map(r => {
+                    if (r.match_type === 'segment') {
+                        return `<div class="search-result" onclick="navigate('#/transcriptions/${r.transcription_id}')">
+                            <div class="sr-file">${escHtml(r.filename)}</div>
+                            <div class="sr-time">[${formatTime(r.start_ms/1000)} -> ${formatTime(r.end_ms/1000)}]</div>
+                            <div class="sr-text">${escHtml(r.text)}</div>
+                        </div>`;
+                    } else {
+                        return `<div class="search-result" onclick="navigate('#/transcriptions/${r.id}')">
+                            <div class="sr-file">${escHtml(r.filename)}</div>
+                            <div class="sr-time">${formatDate(r.created_at)}</div>
+                            <div class="sr-text">Fichier correspondant</div>
+                        </div>`;
+                    }
+                }).join('');
+            } catch (e) {
+                resultsEl.innerHTML = '<p style="color:#fca5a5;">Erreur : ' + escHtml(e.message) + '</p>';
             }
-
-            printWindow.document.write('<script>window.onload=function(){window.print();}<\/script>');
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
         }
 
-        function formatTime(s) {
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return m.toString().padStart(2, '0') + ':' + sec.toString().padStart(2, '0');
-        }
-        function escHtml(t) {
-            return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
+        btnSearch.addEventListener('click', () => doSearch(searchInput.value.trim()));
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') doSearch(searchInput.value.trim());
+        });
+
+        if (query) doSearch(query);
+    }
     </script>
 </body>
 </html>

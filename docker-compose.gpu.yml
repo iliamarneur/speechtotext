@@ -7,10 +7,13 @@ services:
       - "8000:8000"
     volumes:
       - whisper-models:/models
+      - whisper-data:/data
     environment:
       - WHISPER_MODEL=large-v3
       - WHISPER_DEVICE=auto
       - WHISPER_COMPUTE_TYPE=auto
+      - DB_PATH=/data/transcriptions.db
+      - STORE_AUDIO=false
     deploy:
       resources:
         reservations:
@@ -22,3 +25,4 @@ services:
 
 volumes:
   whisper-models:
+  whisper-data:

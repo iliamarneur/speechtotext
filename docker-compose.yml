@@ -7,9 +7,13 @@ services:
       - "8000:8000"
     volumes:
       - whisper-models:/models
+      - whisper-data:/data
     environment:
       - WHISPER_MODEL=medium
+      - DB_PATH=/data/transcriptions.db
+      - STORE_AUDIO=false
     restart: unless-stopped
 
 volumes:
   whisper-models:
+  whisper-data:
