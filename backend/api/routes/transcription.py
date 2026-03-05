@@ -25,6 +25,7 @@ from backend.llm_processing.summarizer import summarize_stream
 from backend.llm_processing.key_points import extract_key_points_stream
 from backend.llm_processing.actions import extract_actions_stream
 from backend.llm_processing.study_cards import generate_study_cards_stream
+from backend.llm_processing.quiz import generate_quiz_stream
 
 router = APIRouter()
 
@@ -219,6 +220,24 @@ async def transcribe(
                             yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'study_cards', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     print(f"[LLM] Erreur fiches apprentissage automatique (ignorée): {e}")
+
+                # --- Étape 7 : Analyse LLM automatique (quiz) ---
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'quiz'}, ensure_ascii=False)}\n\n"
+                    qz_start = time.time()
+
+                    for chunk in generate_quiz_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            qz_ms = int((time.time() - qz_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "quiz",
+                                chunk["full_text"], use_model, qz_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'quiz', 'processing_ms': qz_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'quiz', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur quiz automatique (ignorée): {e}")
 
         except Exception as e:
             mark_error_sync(config.DB_PATH, tid, str(e))

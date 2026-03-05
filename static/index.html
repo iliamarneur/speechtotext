@@ -282,6 +282,49 @@
         .summary-status { font-size: 0.8rem; color: #64748b; }
         .btn-ai { background: linear-gradient(135deg, #7c3aed, #3b82f6); }
         .btn-ai:hover { opacity: 0.9; }
+
+        /* Analysis tabs — pill style */
+        .analysis-tabs-container { margin-top: 1.5rem; }
+        .analysis-tabs-container.result { display: none; }
+        .analysis-tabs-container.result.active { display: block; }
+        .analysis-tabs {
+            display: flex; gap: 0.5rem; padding: 0.4rem;
+            background: #0f172a; border-radius: 12px; border: 1px solid #334155;
+            overflow-x: auto; scrollbar-width: none;
+        }
+        .analysis-tabs::-webkit-scrollbar { display: none; }
+        .analysis-tab {
+            padding: 0.55rem 1rem; font-size: 0.8rem; font-weight: 600;
+            color: #94a3b8; cursor: pointer; white-space: nowrap;
+            border: none; border-radius: 8px; background: transparent;
+            transition: all 0.25s ease; display: flex; align-items: center; gap: 0.45rem;
+            position: relative;
+        }
+        .analysis-tab:hover { color: #e2e8f0; background: rgba(59,130,246,0.08); }
+        .analysis-tab.active {
+            color: #fff; background: linear-gradient(135deg, #3b82f6, #7c3aed);
+            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+        }
+        .analysis-tab .tab-icon { font-size: 0.95rem; line-height: 1; }
+        .analysis-tab .tab-dot {
+            width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+            position: absolute; top: 6px; right: 6px;
+        }
+        .analysis-tab .tab-dot.idle { background: transparent; }
+        .analysis-tab .tab-dot.loading { background: #eab308; animation: pulse-dot 1s ease-in-out infinite; }
+        .analysis-tab .tab-dot.done { background: #22c55e; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .analysis-panel {
+            display: none; padding-top: 1.2rem;
+        }
+        .analysis-panel.active { display: block; animation: fadePanel 0.2s ease; }
+        @keyframes fadePanel { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+        .analysis-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.8rem;
+        }
+        .analysis-panel-header .left { display: flex; align-items: center; gap: 0.8rem; }
+        .analysis-panel-header .right { display: flex; align-items: center; gap: 0.5rem; }
     </style>
 </head>
 <body>
@@ -602,45 +645,50 @@
                 </div>
                 <textarea class="result-text" id="resultText" readonly></textarea>
             </div>
-            <div class="card result" id="summaryCard" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                    <div style="display:flex;align-items:center;gap:0.8rem;">
-                        <label style="margin:0;">Resume IA</label>
-                        <span class="llm-badge" id="summaryBadge"></span>
-                    </div>
-                    <span class="summary-status" id="uploadSummaryStatus"></span>
+            <div class="card analysis-tabs-container result" id="analysisContainer">
+                <label style="margin:0 0 0.8rem 0;">Analyses IA</label>
+                <div class="analysis-tabs" id="uploadAnalysisTabs">
+                    <button class="analysis-tab active" data-tab="summary"><span class="tab-dot idle" id="dotSummary"></span><span class="tab-icon">&#128221;</span>Resume</button>
+                    <button class="analysis-tab" data-tab="key_points"><span class="tab-dot idle" id="dotKeyPoints"></span><span class="tab-icon">&#128273;</span>Points Cles</button>
+                    <button class="analysis-tab" data-tab="actions"><span class="tab-dot idle" id="dotActions"></span><span class="tab-icon">&#9989;</span>Actions</button>
+                    <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="dotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
+                    <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="dotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                 </div>
-                <div class="summary-content" id="uploadSummaryContent"></div>
-            </div>
-            <div class="card result" id="keyPointsCard" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                    <div style="display:flex;align-items:center;gap:0.8rem;">
-                        <label style="margin:0;">Points Cles</label>
-                        <span class="llm-badge" id="keyPointsBadge"></span>
+                <div class="analysis-panel active" id="panelSummary">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="summaryBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadSummaryStatus"></span></div>
                     </div>
-                    <span class="summary-status" id="uploadKeyPointsStatus"></span>
+                    <div class="summary-content" id="uploadSummaryContent"></div>
                 </div>
-                <div class="summary-content" id="uploadKeyPointsContent"></div>
-            </div>
-            <div class="card result" id="actionsCard" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                    <div style="display:flex;align-items:center;gap:0.8rem;">
-                        <label style="margin:0;">Actions</label>
-                        <span class="llm-badge" id="actionsBadge"></span>
+                <div class="analysis-panel" id="panelKeyPoints">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="keyPointsBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadKeyPointsStatus"></span></div>
                     </div>
-                    <span class="summary-status" id="uploadActionsStatus"></span>
+                    <div class="summary-content" id="uploadKeyPointsContent"></div>
                 </div>
-                <div class="summary-content" id="uploadActionsContent"></div>
-            </div>
-            <div class="card result" id="studyCardsCard" style="display:none;">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                    <div style="display:flex;align-items:center;gap:0.8rem;">
-                        <label style="margin:0;">Fiches d'apprentissage</label>
-                        <span class="llm-badge" id="studyCardsBadge"></span>
+                <div class="analysis-panel" id="panelActions">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="actionsBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadActionsStatus"></span></div>
                     </div>
-                    <span class="summary-status" id="uploadStudyCardsStatus"></span>
+                    <div class="summary-content" id="uploadActionsContent"></div>
                 </div>
-                <div class="summary-content" id="uploadStudyCardsContent"></div>
+                <div class="analysis-panel" id="panelStudyCards">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="studyCardsBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadStudyCardsStatus"></span></div>
+                    </div>
+                    <div class="summary-content" id="uploadStudyCardsContent"></div>
+                </div>
+                <div class="analysis-panel" id="panelQuiz">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="quizBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadQuizStatus"></span></div>
+                    </div>
+                    <div class="summary-content" id="uploadQuizContent"></div>
+                </div>
             </div>
         `;
 
@@ -660,22 +708,35 @@
         const btnCopy = document.getElementById('btnCopy');
         const btnViewDetail = document.getElementById('btnViewDetail');
         const statusBanner = document.getElementById('statusBanner');
-        const summaryCard = document.getElementById('summaryCard');
+        const analysisContainer = document.getElementById('analysisContainer');
         const uploadSummaryContent = document.getElementById('uploadSummaryContent');
         const uploadSummaryStatus = document.getElementById('uploadSummaryStatus');
         const summaryBadge = document.getElementById('summaryBadge');
-        const keyPointsCard = document.getElementById('keyPointsCard');
         const uploadKeyPointsContent = document.getElementById('uploadKeyPointsContent');
         const uploadKeyPointsStatus = document.getElementById('uploadKeyPointsStatus');
         const keyPointsBadge = document.getElementById('keyPointsBadge');
-        const actionsCard = document.getElementById('actionsCard');
         const uploadActionsContent = document.getElementById('uploadActionsContent');
         const uploadActionsStatus = document.getElementById('uploadActionsStatus');
         const actionsBadge = document.getElementById('actionsBadge');
-        const studyCardsCard = document.getElementById('studyCardsCard');
         const uploadStudyCardsContent = document.getElementById('uploadStudyCardsContent');
         const uploadStudyCardsStatus = document.getElementById('uploadStudyCardsStatus');
         const studyCardsBadge = document.getElementById('studyCardsBadge');
+        const uploadQuizContent = document.getElementById('uploadQuizContent');
+        const uploadQuizStatus = document.getElementById('uploadQuizStatus');
+        const quizBadge = document.getElementById('quizBadge');
+
+        // Tab switching for upload analysis tabs
+        document.getElementById('uploadAnalysisTabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('.analysis-tab');
+            if (!tab) return;
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('#uploadAnalysisTabs .analysis-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('#analysisContainer .analysis-panel').forEach(p => p.classList.remove('active'));
+            const panelId = 'panel' + tabName.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('');
+            const panel = document.getElementById(panelId);
+            if (panel) panel.classList.add('active');
+        });
 
         let selectedFile = null;
 
@@ -731,14 +792,13 @@
             btnTranscribe.disabled = true;
             errorMsg.classList.remove('active');
             resultCard.classList.remove('active');
-            summaryCard.style.display = 'none';
+            analysisContainer.classList.remove('active');
             uploadSummaryContent.textContent = '';
-            keyPointsCard.style.display = 'none';
             uploadKeyPointsContent.textContent = '';
-            actionsCard.style.display = 'none';
             uploadActionsContent.textContent = '';
-            studyCardsCard.style.display = 'none';
             uploadStudyCardsContent.textContent = '';
+            uploadQuizContent.textContent = '';
+            document.querySelectorAll('#analysisContainer .tab-dot').forEach(d => { d.className = 'tab-dot idle'; });
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
             liveText.textContent = '';
@@ -747,6 +807,7 @@
             let keyPointsMd = '';
             let actionsMd = '';
             let studyCardsMd = '';
+            let quizMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -792,67 +853,55 @@
                                 btnViewDetail.onclick = () => navigate('#/transcriptions/' + event.transcription_id);
                             }
                         } else if (event.type === 'analysis_start') {
-                            if (event.analysis === 'key_points') {
-                                keyPointsCard.style.display = 'block';
-                                keyPointsBadge.textContent = 'Generation en cours...';
-                                uploadKeyPointsStatus.textContent = '';
-                                uploadKeyPointsContent.innerHTML = '<span style="color:#64748b;">Extraction des points cles...</span>';
-                                keyPointsMd = '';
-                            } else if (event.analysis === 'actions') {
-                                actionsCard.style.display = 'block';
-                                actionsBadge.textContent = 'Generation en cours...';
-                                uploadActionsStatus.textContent = '';
-                                uploadActionsContent.innerHTML = '<span style="color:#64748b;">Extraction des actions...</span>';
-                                actionsMd = '';
-                            } else if (event.analysis === 'study_cards') {
-                                studyCardsCard.style.display = 'block';
-                                studyCardsBadge.textContent = 'Generation en cours...';
-                                uploadStudyCardsStatus.textContent = '';
-                                uploadStudyCardsContent.innerHTML = '<span style="color:#64748b;">Generation des fiches...</span>';
-                                studyCardsMd = '';
-                            } else {
-                                summaryCard.style.display = 'block';
-                                summaryBadge.textContent = 'Generation en cours...';
-                                uploadSummaryStatus.textContent = '';
-                                uploadSummaryContent.innerHTML = '<span style="color:#64748b;">Le resume se genere...</span>';
-                                summaryMd = '';
-                            }
+                            analysisContainer.classList.add('active');
+                            const aMap = {
+                                summary:     { content: uploadSummaryContent,    status: uploadSummaryStatus,    badge: summaryBadge,    md: () => summaryMd = '',     dot: 'dotSummary',     msg: 'Le resume se genere...' },
+                                key_points:  { content: uploadKeyPointsContent,  status: uploadKeyPointsStatus,  badge: keyPointsBadge,  md: () => keyPointsMd = '',   dot: 'dotKeyPoints',   msg: 'Extraction des points cles...' },
+                                actions:     { content: uploadActionsContent,    status: uploadActionsStatus,    badge: actionsBadge,    md: () => actionsMd = '',     dot: 'dotActions',     msg: 'Extraction des actions...' },
+                                study_cards: { content: uploadStudyCardsContent, status: uploadStudyCardsStatus, badge: studyCardsBadge, md: () => studyCardsMd = '',  dot: 'dotStudyCards',  msg: 'Generation des fiches...' },
+                                quiz:        { content: uploadQuizContent,       status: uploadQuizStatus,       badge: quizBadge,       md: () => quizMd = '',        dot: 'dotQuiz',        msg: 'Generation du quiz...' },
+                            };
+                            const a = aMap[event.analysis] || aMap.summary;
+                            a.md();
+                            a.badge.textContent = '';
+                            a.status.textContent = '';
+                            a.content.innerHTML = '<span style="color:#64748b;">' + a.msg + '</span>';
+                            const dot = document.getElementById(a.dot);
+                            if (dot) dot.className = 'tab-dot loading';
+                            // Auto-switch to the tab being generated
+                            document.querySelectorAll('#uploadAnalysisTabs .analysis-tab').forEach(t => t.classList.remove('active'));
+                            const activeTab = document.querySelector('#uploadAnalysisTabs .analysis-tab[data-tab="' + event.analysis + '"]');
+                            if (activeTab) activeTab.classList.add('active');
+                            document.querySelectorAll('#analysisContainer .analysis-panel').forEach(p => p.classList.remove('active'));
+                            const panelId = 'panel' + event.analysis.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('');
+                            const panel = document.getElementById(panelId);
+                            if (panel) panel.classList.add('active');
                         } else if (event.type === 'analysis_token') {
-                            if (event.analysis === 'key_points') {
-                                keyPointsMd += event.token;
-                                uploadKeyPointsContent.innerHTML = markdownToHtml(keyPointsMd);
-                                uploadKeyPointsContent.scrollTop = uploadKeyPointsContent.scrollHeight;
-                                keyPointsBadge.textContent = 'IA';
-                            } else if (event.analysis === 'actions') {
-                                actionsMd += event.token;
-                                uploadActionsContent.innerHTML = markdownToHtml(actionsMd);
-                                uploadActionsContent.scrollTop = uploadActionsContent.scrollHeight;
-                                actionsBadge.textContent = 'IA';
-                            } else if (event.analysis === 'study_cards') {
-                                studyCardsMd += event.token;
-                                uploadStudyCardsContent.innerHTML = markdownToHtml(studyCardsMd);
-                                uploadStudyCardsContent.scrollTop = uploadStudyCardsContent.scrollHeight;
-                                studyCardsBadge.textContent = 'IA';
-                            } else {
-                                summaryMd += event.token;
-                                uploadSummaryContent.innerHTML = markdownToHtml(summaryMd);
-                                uploadSummaryContent.scrollTop = uploadSummaryContent.scrollHeight;
-                                summaryBadge.textContent = 'IA';
-                            }
+                            const tMap = {
+                                summary:     { content: uploadSummaryContent,    badge: summaryBadge,    get: () => summaryMd,     set: v => summaryMd = v },
+                                key_points:  { content: uploadKeyPointsContent,  badge: keyPointsBadge,  get: () => keyPointsMd,   set: v => keyPointsMd = v },
+                                actions:     { content: uploadActionsContent,    badge: actionsBadge,    get: () => actionsMd,     set: v => actionsMd = v },
+                                study_cards: { content: uploadStudyCardsContent, badge: studyCardsBadge, get: () => studyCardsMd,  set: v => studyCardsMd = v },
+                                quiz:        { content: uploadQuizContent,       badge: quizBadge,       get: () => quizMd,        set: v => quizMd = v },
+                            };
+                            const t = tMap[event.analysis] || tMap.summary;
+                            t.set(t.get() + event.token);
+                            t.content.innerHTML = markdownToHtml(t.get());
+                            t.content.scrollTop = t.content.scrollHeight;
+                            t.badge.textContent = 'IA';
                         } else if (event.type === 'analysis_done') {
-                            if (event.analysis === 'key_points') {
-                                uploadKeyPointsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
-                                keyPointsBadge.textContent = 'IA';
-                            } else if (event.analysis === 'actions') {
-                                uploadActionsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
-                                actionsBadge.textContent = 'IA';
-                            } else if (event.analysis === 'study_cards') {
-                                uploadStudyCardsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
-                                studyCardsBadge.textContent = 'IA';
-                            } else {
-                                uploadSummaryStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
-                                summaryBadge.textContent = 'IA';
-                            }
+                            const dMap = {
+                                summary:     { status: uploadSummaryStatus,    badge: summaryBadge,    dot: 'dotSummary' },
+                                key_points:  { status: uploadKeyPointsStatus,  badge: keyPointsBadge,  dot: 'dotKeyPoints' },
+                                actions:     { status: uploadActionsStatus,    badge: actionsBadge,    dot: 'dotActions' },
+                                study_cards: { status: uploadStudyCardsStatus, badge: studyCardsBadge, dot: 'dotStudyCards' },
+                                quiz:        { status: uploadQuizStatus,       badge: quizBadge,       dot: 'dotQuiz' },
+                            };
+                            const d = dMap[event.analysis] || dMap.summary;
+                            d.status.textContent = formatMs(event.processing_ms);
+                            d.badge.textContent = 'IA';
+                            const dot = document.getElementById(d.dot);
+                            if (dot) dot.className = 'tab-dot done';
                         } else if (event.type === 'error') {
                             throw new Error(event.message);
                         }
@@ -947,57 +996,50 @@
                             <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'md')">Markdown</button>
                         </div>
                     </div>
-                    <div class="card summary-card">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                            <div style="display:flex;align-items:center;gap:0.8rem;">
-                                <label style="margin:0;">Resume IA</label>
-                                <span class="llm-badge" id="detailSummaryBadge"></span>
-                            </div>
-                            <div style="display:flex;gap:0.5rem;align-items:center;">
-                                <span class="summary-status" id="summaryStatus"></span>
-                                <button class="btn btn-sm btn-ai" id="btnSummarize">Regenerer</button>
-                            </div>
+                    <div class="card" style="margin-top:1.5rem;">
+                        <label style="margin:0 0 0.8rem 0;">Analyses IA</label>
+                        <div class="analysis-tabs" id="detailAnalysisTabs">
+                            <button class="analysis-tab active" data-tab="summary"><span class="tab-dot idle" id="detailDotSummary"></span><span class="tab-icon">&#128221;</span>Resume</button>
+                            <button class="analysis-tab" data-tab="key_points"><span class="tab-dot idle" id="detailDotKeyPoints"></span><span class="tab-icon">&#128273;</span>Points Cles</button>
+                            <button class="analysis-tab" data-tab="actions"><span class="tab-dot idle" id="detailDotActions"></span><span class="tab-icon">&#9989;</span>Actions</button>
+                            <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="detailDotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
+                            <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="detailDotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                         </div>
-                        <div class="summary-content" id="summaryContent"></div>
-                    </div>
-                    <div class="card summary-card">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                            <div style="display:flex;align-items:center;gap:0.8rem;">
-                                <label style="margin:0;">Points Cles</label>
-                                <span class="llm-badge" id="detailKeyPointsBadge"></span>
+                        <div class="analysis-panel active" id="detailPanelSummary">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailSummaryBadge"></span><span class="summary-status" id="summaryStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnSummarize">Regenerer</button></div>
                             </div>
-                            <div style="display:flex;gap:0.5rem;align-items:center;">
-                                <span class="summary-status" id="keyPointsStatus"></span>
-                                <button class="btn btn-sm btn-ai" id="btnKeyPoints">Regenerer</button>
-                            </div>
+                            <div class="summary-content" id="summaryContent"></div>
                         </div>
-                        <div class="summary-content" id="keyPointsContent"></div>
-                    </div>
-                    <div class="card summary-card">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                            <div style="display:flex;align-items:center;gap:0.8rem;">
-                                <label style="margin:0;">Actions</label>
-                                <span class="llm-badge" id="detailActionsBadge"></span>
+                        <div class="analysis-panel" id="detailPanelKeyPoints">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailKeyPointsBadge"></span><span class="summary-status" id="keyPointsStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnKeyPoints">Regenerer</button></div>
                             </div>
-                            <div style="display:flex;gap:0.5rem;align-items:center;">
-                                <span class="summary-status" id="actionsStatus"></span>
-                                <button class="btn btn-sm btn-ai" id="btnActions">Regenerer</button>
-                            </div>
+                            <div class="summary-content" id="keyPointsContent"></div>
                         </div>
-                        <div class="summary-content" id="actionsContent"></div>
-                    </div>
-                    <div class="card summary-card">
-                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
-                            <div style="display:flex;align-items:center;gap:0.8rem;">
-                                <label style="margin:0;">Fiches d'apprentissage</label>
-                                <span class="llm-badge" id="detailStudyCardsBadge"></span>
+                        <div class="analysis-panel" id="detailPanelActions">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailActionsBadge"></span><span class="summary-status" id="actionsStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnActions">Regenerer</button></div>
                             </div>
-                            <div style="display:flex;gap:0.5rem;align-items:center;">
-                                <span class="summary-status" id="studyCardsStatus"></span>
-                                <button class="btn btn-sm btn-ai" id="btnStudyCards">Regenerer</button>
-                            </div>
+                            <div class="summary-content" id="actionsContent"></div>
                         </div>
-                        <div class="summary-content" id="studyCardsContent"></div>
+                        <div class="analysis-panel" id="detailPanelStudyCards">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailStudyCardsBadge"></span><span class="summary-status" id="studyCardsStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnStudyCards">Regenerer</button></div>
+                            </div>
+                            <div class="summary-content" id="studyCardsContent"></div>
+                        </div>
+                        <div class="analysis-panel" id="detailPanelQuiz">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailQuizBadge"></span><span class="summary-status" id="quizStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnQuiz">Regenerer</button></div>
+                            </div>
+                            <div class="summary-content" id="quizContent"></div>
+                        </div>
                     </div>
                 </div>
                 <div>
@@ -1053,6 +1095,25 @@
             } catch {}
         });
 
+        // Detail tab switching
+        document.getElementById('detailAnalysisTabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('.analysis-tab');
+            if (!tab) return;
+            const tabName = tab.dataset.tab;
+            document.querySelectorAll('#detailAnalysisTabs .analysis-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.querySelectorAll('#detailAnalysisTabs ~ .analysis-panel').forEach(p => p.classList.remove('active'));
+            const panelId = 'detailPanel' + tabName.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('');
+            const panel = document.getElementById(panelId);
+            if (panel) panel.classList.add('active');
+        });
+
+        // Helper to set dot status for detail tabs
+        function setDetailDot(type, status) {
+            const dot = document.getElementById('detailDot' + type.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(''));
+            if (dot) dot.className = 'tab-dot ' + status;
+        }
+
         // --- Résumé IA ---
         const btnSummarize = document.getElementById('btnSummarize');
         const summaryContent = document.getElementById('summaryContent');
@@ -1066,6 +1127,7 @@
                 summaryContent.innerHTML = markdownToHtml(existing.content);
                 detailSummaryBadge.textContent = existing.model_name || 'IA';
                 summaryStatus.textContent = formatMs(existing.processing_ms);
+                setDetailDot('summary', 'done');
             } else {
                 summaryContent.innerHTML = '<span style="color:#64748b;">Aucun resume disponible.</span>';
             }
@@ -1153,6 +1215,7 @@
                 keyPointsContent.innerHTML = markdownToHtml(existingKp.content);
                 detailKeyPointsBadge.textContent = existingKp.model_name || 'IA';
                 keyPointsStatus.textContent = formatMs(existingKp.processing_ms);
+                setDetailDot('key_points', 'done');
             } else {
                 keyPointsContent.innerHTML = '<span style="color:#64748b;">Aucun point cle disponible.</span>';
             }
@@ -1231,6 +1294,7 @@
                 actionsContent.innerHTML = markdownToHtml(existingAct.content);
                 detailActionsBadge.textContent = existingAct.model_name || 'IA';
                 actionsStatus.textContent = formatMs(existingAct.processing_ms);
+                setDetailDot('actions', 'done');
             } else {
                 actionsContent.innerHTML = '<span style="color:#64748b;">Aucune action disponible.</span>';
             }
@@ -1308,6 +1372,7 @@
                 studyCardsContent.innerHTML = markdownToHtml(existingSc.content);
                 detailStudyCardsBadge.textContent = existingSc.model_name || 'IA';
                 studyCardsStatus.textContent = formatMs(existingSc.processing_ms);
+                setDetailDot('study_cards', 'done');
             } else {
                 studyCardsContent.innerHTML = '<span style="color:#64748b;">Aucune fiche disponible.</span>';
             }
@@ -1372,6 +1437,84 @@
         }
 
         btnStudyCards.addEventListener('click', runStudyCards);
+
+        // --- Quiz IA ---
+        const btnQuiz = document.getElementById('btnQuiz');
+        const quizContent = document.getElementById('quizContent');
+        const quizStatus = document.getElementById('quizStatus');
+        const detailQuizBadge = document.getElementById('detailQuizBadge');
+
+        try {
+            const existingQuiz = await api('/api/transcriptions/' + id + '/analysis/quiz');
+            if (existingQuiz && existingQuiz.content) {
+                quizContent.innerHTML = markdownToHtml(existingQuiz.content);
+                detailQuizBadge.textContent = existingQuiz.model_name || 'IA';
+                quizStatus.textContent = formatMs(existingQuiz.processing_ms);
+                setDetailDot('quiz', 'done');
+            } else {
+                quizContent.innerHTML = '<span style="color:#64748b;">Aucun quiz disponible.</span>';
+            }
+        } catch (e) {
+            quizContent.innerHTML = '<span style="color:#64748b;">Aucun quiz disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnQuiz.disabled = true;
+            btnQuiz.title = 'LLM non disponible (Ollama non lance)';
+            btnQuiz.style.opacity = '0.5';
+        }
+
+        async function runQuiz() {
+            btnQuiz.disabled = true;
+            quizContent.textContent = '';
+            quizStatus.textContent = 'Generation en cours...';
+            detailQuizBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/generate-quiz', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            quizContent.innerHTML = markdownToHtml(fullMd);
+                            quizContent.scrollTop = quizContent.scrollHeight;
+                            detailQuizBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            quizStatus.textContent = formatMs(event.processing_ms);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                quizStatus.textContent = 'Erreur : ' + e.message;
+                quizStatus.style.color = '#fca5a5';
+            } finally {
+                btnQuiz.disabled = false;
+            }
+        }
+
+        btnQuiz.addEventListener('click', runQuiz);
 
         // Segment click = seek audio
         if (hasAudio) {
