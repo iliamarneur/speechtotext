@@ -622,6 +622,16 @@
                 </div>
                 <div class="summary-content" id="uploadKeyPointsContent"></div>
             </div>
+            <div class="card result" id="actionsCard" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                    <div style="display:flex;align-items:center;gap:0.8rem;">
+                        <label style="margin:0;">Actions</label>
+                        <span class="llm-badge" id="actionsBadge"></span>
+                    </div>
+                    <span class="summary-status" id="uploadActionsStatus"></span>
+                </div>
+                <div class="summary-content" id="uploadActionsContent"></div>
+            </div>
         `;
 
         const dropZone = document.getElementById('dropZone');
@@ -648,6 +658,10 @@
         const uploadKeyPointsContent = document.getElementById('uploadKeyPointsContent');
         const uploadKeyPointsStatus = document.getElementById('uploadKeyPointsStatus');
         const keyPointsBadge = document.getElementById('keyPointsBadge');
+        const actionsCard = document.getElementById('actionsCard');
+        const uploadActionsContent = document.getElementById('uploadActionsContent');
+        const uploadActionsStatus = document.getElementById('uploadActionsStatus');
+        const actionsBadge = document.getElementById('actionsBadge');
 
         let selectedFile = null;
 
@@ -707,12 +721,15 @@
             uploadSummaryContent.textContent = '';
             keyPointsCard.style.display = 'none';
             uploadKeyPointsContent.textContent = '';
+            actionsCard.style.display = 'none';
+            uploadActionsContent.textContent = '';
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
             liveText.textContent = '';
 
             let summaryMd = '';
             let keyPointsMd = '';
+            let actionsMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -764,6 +781,12 @@
                                 uploadKeyPointsStatus.textContent = '';
                                 uploadKeyPointsContent.innerHTML = '<span style="color:#64748b;">Extraction des points cles...</span>';
                                 keyPointsMd = '';
+                            } else if (event.analysis === 'actions') {
+                                actionsCard.style.display = 'block';
+                                actionsBadge.textContent = 'Generation en cours...';
+                                uploadActionsStatus.textContent = '';
+                                uploadActionsContent.innerHTML = '<span style="color:#64748b;">Extraction des actions...</span>';
+                                actionsMd = '';
                             } else {
                                 summaryCard.style.display = 'block';
                                 summaryBadge.textContent = 'Generation en cours...';
@@ -777,6 +800,11 @@
                                 uploadKeyPointsContent.innerHTML = markdownToHtml(keyPointsMd);
                                 uploadKeyPointsContent.scrollTop = uploadKeyPointsContent.scrollHeight;
                                 keyPointsBadge.textContent = 'IA';
+                            } else if (event.analysis === 'actions') {
+                                actionsMd += event.token;
+                                uploadActionsContent.innerHTML = markdownToHtml(actionsMd);
+                                uploadActionsContent.scrollTop = uploadActionsContent.scrollHeight;
+                                actionsBadge.textContent = 'IA';
                             } else {
                                 summaryMd += event.token;
                                 uploadSummaryContent.innerHTML = markdownToHtml(summaryMd);
@@ -787,6 +815,9 @@
                             if (event.analysis === 'key_points') {
                                 uploadKeyPointsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
                                 keyPointsBadge.textContent = 'IA';
+                            } else if (event.analysis === 'actions') {
+                                uploadActionsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
+                                actionsBadge.textContent = 'IA';
                             } else {
                                 uploadSummaryStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
                                 summaryBadge.textContent = 'IA';
@@ -910,6 +941,19 @@
                             </div>
                         </div>
                         <div class="summary-content" id="keyPointsContent"></div>
+                    </div>
+                    <div class="card summary-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                            <div style="display:flex;align-items:center;gap:0.8rem;">
+                                <label style="margin:0;">Actions</label>
+                                <span class="llm-badge" id="detailActionsBadge"></span>
+                            </div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <span class="summary-status" id="actionsStatus"></span>
+                                <button class="btn btn-sm btn-ai" id="btnActions">Regenerer</button>
+                            </div>
+                        </div>
+                        <div class="summary-content" id="actionsContent"></div>
                     </div>
                 </div>
                 <div>
@@ -1129,6 +1173,84 @@
         }
 
         btnKeyPoints.addEventListener('click', runKeyPoints);
+
+        // --- Actions IA ---
+        const btnActions = document.getElementById('btnActions');
+        const actionsContent = document.getElementById('actionsContent');
+        const actionsStatus = document.getElementById('actionsStatus');
+        const detailActionsBadge = document.getElementById('detailActionsBadge');
+
+        // Charger des actions existantes
+        try {
+            const existingAct = await api('/api/transcriptions/' + id + '/analysis/actions');
+            if (existingAct && existingAct.content) {
+                actionsContent.innerHTML = markdownToHtml(existingAct.content);
+                detailActionsBadge.textContent = existingAct.model_name || 'IA';
+                actionsStatus.textContent = formatMs(existingAct.processing_ms);
+            } else {
+                actionsContent.innerHTML = '<span style="color:#64748b;">Aucune action disponible.</span>';
+            }
+        } catch (e) {
+            actionsContent.innerHTML = '<span style="color:#64748b;">Aucune action disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnActions.disabled = true;
+            btnActions.title = 'LLM non disponible (Ollama non lance)';
+            btnActions.style.opacity = '0.5';
+        }
+
+        async function runActions() {
+            btnActions.disabled = true;
+            actionsContent.textContent = '';
+            actionsStatus.textContent = 'Generation en cours...';
+            detailActionsBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/extract-actions', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            actionsContent.innerHTML = markdownToHtml(fullMd);
+                            actionsContent.scrollTop = actionsContent.scrollHeight;
+                            detailActionsBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            actionsStatus.textContent = formatMs(event.processing_ms);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                actionsStatus.textContent = 'Erreur : ' + e.message;
+                actionsStatus.style.color = '#fca5a5';
+            } finally {
+                btnActions.disabled = false;
+            }
+        }
+
+        btnActions.addEventListener('click', runActions);
 
         // Segment click = seek audio
         if (hasAudio) {

@@ -23,6 +23,7 @@ from backend.outputs.exports import export_txt, export_json, export_srt, export_
 from backend.llm_processing import ollama_client
 from backend.llm_processing.summarizer import summarize_stream
 from backend.llm_processing.key_points import extract_key_points_stream
+from backend.llm_processing.actions import extract_actions_stream
 
 router = APIRouter()
 
@@ -181,6 +182,24 @@ async def transcribe(
                             yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'key_points', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     print(f"[LLM] Erreur points clés automatique (ignorée): {e}")
+
+                # --- Étape 5 : Analyse LLM automatique (actions) ---
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'actions'}, ensure_ascii=False)}\n\n"
+                    act_start = time.time()
+
+                    for chunk in extract_actions_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            act_ms = int((time.time() - act_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "actions",
+                                chunk["full_text"], use_model, act_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'actions', 'processing_ms': act_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'actions', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur actions automatique (ignorée): {e}")
 
         except Exception as e:
             mark_error_sync(config.DB_PATH, tid, str(e))
