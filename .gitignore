@@ -7,3 +7,4 @@ __pycache__/
 ssh_cmd.py
 upload_to_vps.py
 data/
+.claude/

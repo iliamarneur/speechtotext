@@ -7,8 +7,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Torch CPU-only (léger, ~200MB au lieu de 2GB+)
+RUN pip install --no-cache-dir \
+    torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt requests
+# Installer le reste des deps (torch déjà installé, pip le skip)
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
@@ -16,6 +22,7 @@ ENV WHISPER_MODEL_DIR=/models
 ENV WHISPER_MODEL=medium
 ENV WHISPER_DEVICE=cpu
 ENV WHISPER_COMPUTE_TYPE=int8
+ENV ENABLE_VAD=true
 
 EXPOSE 8000
 

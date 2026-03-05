@@ -50,7 +50,6 @@ def export_txt(transcription: dict, segments: list) -> str:
     lines.append("=" * 60)
     lines.append("")
 
-    # Full text from segments
     full_text = " ".join(seg["text"] for seg in segments if seg.get("text"))
     lines.append(full_text)
     lines.append("")
@@ -130,7 +129,6 @@ def export_md(transcription: dict, segments: list) -> str:
     lines.append(f"# Transcription : {transcription.get('filename', 'audio')}")
     lines.append("")
 
-    # Metadata table
     lines.append("| Propriete | Valeur |")
     lines.append("|-----------|--------|")
     lines.append(f"| Fichier | {transcription.get('filename', 'N/A')} |")

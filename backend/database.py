@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     audio_path TEXT,
     quality_score INTEGER,
     notes TEXT,
-    error_message TEXT
+    error_message TEXT,
+    vad_stats TEXT
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -68,14 +69,26 @@ CREATE INDEX IF NOT EXISTS idx_transcriptions_status ON transcriptions(status);
 CREATE INDEX IF NOT EXISTS idx_transcriptions_created ON transcriptions(created_at);
 """
 
+# Migration pour les bases existantes (ajout colonne vad_stats)
+MIGRATIONS = [
+    "ALTER TABLE transcriptions ADD COLUMN vad_stats TEXT",
+]
+
 
 async def init_db(db_path: str = None):
-    """Initialise la base de données et crée les tables."""
+    """Initialise la base de données et applique les migrations."""
     path = db_path or DB_PATH
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(path) as db:
         await db.executescript(SCHEMA)
         await db.commit()
+        # Migrations pour bases existantes
+        for migration in MIGRATIONS:
+            try:
+                await db.execute(migration)
+                await db.commit()
+            except Exception:
+                pass  # Colonne existe déjà
 
 
 async def get_connection(db_path: str = None):
@@ -177,13 +190,11 @@ async def list_transcriptions(db, page: int = 1, per_page: int = 20,
 
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-    # Whitelist sort columns
     allowed_sorts = {"created_at", "filename", "duration_sec", "status", "language"}
     if sort not in allowed_sorts:
         sort = "created_at"
     order = "DESC" if order.lower() == "desc" else "ASC"
 
-    # Count
     cursor = await db.execute(f"SELECT COUNT(*) FROM transcriptions {where}", params)
     row = await cursor.fetchone()
     total = row[0]
@@ -232,7 +243,6 @@ async def search(db, query: str, limit: int = 50) -> list:
     """Recherche FTS5 dans les segments + LIKE sur filename."""
     results = []
 
-    # FTS search in segments
     cursor = await db.execute(
         """SELECT s.id as segment_id, s.transcription_id, s.idx, s.start_ms, s.end_ms,
                   s.text, t.filename
@@ -247,7 +257,6 @@ async def search(db, query: str, limit: int = 50) -> list:
     for r in rows:
         results.append({**dict(r), "match_type": "segment"})
 
-    # LIKE search on filename
     cursor = await db.execute(
         """SELECT id, filename, status, created_at, duration_sec, language
            FROM transcriptions
@@ -267,7 +276,6 @@ async def get_dashboard_stats(db, period: str = "30d") -> dict:
     days = _parse_period(period) or 30
     date_filter = f"-{days} days"
 
-    # Stats de la période
     cursor = await db.execute(
         """SELECT
             COUNT(*) as count,
@@ -280,7 +288,6 @@ async def get_dashboard_stats(db, period: str = "30d") -> dict:
     row = await cursor.fetchone()
     period_stats = dict(row)
 
-    # Stats totales
     cursor = await db.execute(
         """SELECT
             COUNT(*) as total_count,
@@ -290,7 +297,6 @@ async def get_dashboard_stats(db, period: str = "30d") -> dict:
     row = await cursor.fetchone()
     total_stats = dict(row)
 
-    # Répartition par statut
     cursor = await db.execute(
         "SELECT status, COUNT(*) as count FROM transcriptions GROUP BY status"
     )
@@ -311,16 +317,18 @@ async def get_dashboard_stats(db, period: str = "30d") -> dict:
 
 def save_result_sync(db_path: str, tid: int, duration_sec: float, language: str,
                      language_prob: float, word_count: int, processing_ms: int,
-                     segments: list, audio_path: str = None):
+                     segments: list, audio_path: str = None, vad_stats: str = None):
     """Sauvegarde le résultat d'une transcription (appelé depuis le générateur sync)."""
     conn = get_sync_connection(db_path)
     try:
         conn.execute(
             """UPDATE transcriptions SET
                 status='completed', duration_sec=?, language=?, language_detected=?,
-                word_count=?, processing_ms=?, audio_path=?, updated_at=datetime('now')
+                word_count=?, processing_ms=?, audio_path=?, vad_stats=?,
+                updated_at=datetime('now')
                WHERE id=?""",
-            (duration_sec, language, language_prob, word_count, processing_ms, audio_path, tid)
+            (duration_sec, language, language_prob, word_count, processing_ms,
+             audio_path, vad_stats, tid)
         )
         conn.executemany(
             "INSERT INTO segments (transcription_id, idx, start_ms, end_ms, text) VALUES (?, ?, ?, ?, ?)",
