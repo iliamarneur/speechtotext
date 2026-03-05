@@ -64,9 +64,22 @@ CREATE TRIGGER IF NOT EXISTS segments_au AFTER UPDATE ON segments BEGIN
     INSERT INTO segments_fts(rowid, text) VALUES (new.id, new.text);
 END;
 
+CREATE TABLE IF NOT EXISTS analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transcription_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    content TEXT NOT NULL,
+    model_name TEXT,
+    processing_ms INTEGER,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (transcription_id) REFERENCES transcriptions(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_segments_transcription ON segments(transcription_id);
 CREATE INDEX IF NOT EXISTS idx_transcriptions_status ON transcriptions(status);
 CREATE INDEX IF NOT EXISTS idx_transcriptions_created ON transcriptions(created_at);
+CREATE INDEX IF NOT EXISTS idx_analyses_transcription ON analyses(transcription_id);
+CREATE INDEX IF NOT EXISTS idx_analyses_type ON analyses(type);
 """
 
 # Migration pour les bases existantes (ajout colonne vad_stats)
@@ -349,6 +362,60 @@ def mark_error_sync(db_path: str, tid: int, error_message: str):
             (error_message, tid)
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+# --- Analyses (résumés, points clés, etc.) ---
+
+async def save_analysis(db, transcription_id: int, analysis_type: str,
+                        content: str, model_name: str = None,
+                        processing_ms: int = None) -> int:
+    """Sauvegarde une analyse (résumé, points clés, etc.)."""
+    cursor = await db.execute(
+        """INSERT INTO analyses (transcription_id, type, content, model_name, processing_ms)
+           VALUES (?, ?, ?, ?, ?)""",
+        (transcription_id, analysis_type, content, model_name, processing_ms)
+    )
+    await db.commit()
+    return cursor.lastrowid
+
+
+async def get_analysis(db, transcription_id: int, analysis_type: str) -> dict | None:
+    """Récupère la dernière analyse d'un type donné pour une transcription."""
+    cursor = await db.execute(
+        """SELECT * FROM analyses
+           WHERE transcription_id=? AND type=?
+           ORDER BY created_at DESC LIMIT 1""",
+        (transcription_id, analysis_type)
+    )
+    row = await cursor.fetchone()
+    return dict(row) if row else None
+
+
+async def get_analyses(db, transcription_id: int) -> list:
+    """Récupère toutes les analyses d'une transcription."""
+    cursor = await db.execute(
+        "SELECT * FROM analyses WHERE transcription_id=? ORDER BY created_at DESC",
+        (transcription_id,)
+    )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_analysis_sync(db_path: str, transcription_id: int, analysis_type: str,
+                       content: str, model_name: str = None,
+                       processing_ms: int = None) -> int:
+    """Sauvegarde une analyse (version sync pour les générateurs SSE)."""
+    conn = get_sync_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """INSERT INTO analyses (transcription_id, type, content, model_name, processing_ms)
+               VALUES (?, ?, ?, ?, ?)""",
+            (transcription_id, analysis_type, content, model_name, processing_ms)
+        )
+        conn.commit()
+        return cursor.lastrowid
     finally:
         conn.close()
 

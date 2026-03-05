@@ -15,6 +15,7 @@ from backend.transcription import whisper_service
 from backend.audio_processing import vad
 from backend.api.routes.transcription import router as transcription_router
 from backend.api.routes.dashboard import router as dashboard_router
+from backend.api.routes.analysis import router as analysis_router
 
 
 @asynccontextmanager
@@ -39,6 +40,7 @@ app = FastAPI(title="Audio-to-Knowledge", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.include_router(dashboard_router)
 app.include_router(transcription_router)
+app.include_router(analysis_router)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
 ## Description
 
 Application locale et open source de transformation audio en knowledge.
-Pipeline : audio -> pré-traitement VAD -> transcription Whisper -> (futur: analyse LLM -> génération multi-formats).
+Pipeline : audio -> pré-traitement VAD -> transcription Whisper -> analyse LLM -> génération multi-formats.
 
 ## Architecture actuelle
 
@@ -12,22 +12,25 @@ speechtotext/
 ├── main.py                              — Point d'entrée FastAPI (minimal, wiring uniquement)
 ├── backend/
 │   ├── config.py                        — Configuration centralisée (env vars)
-│   ├── database.py                      — SQLite async/sync (transcriptions + segments + FTS5)
+│   ├── database.py                      — SQLite async/sync (transcriptions + segments + analyses + FTS5)
 │   ├── audio_processing/
-│   │   └── vad.py                       — Pré-traitement Silero VAD (détection parole/silence)
+│   │   └── vad.py                       — Pré-traitement Silero VAD
 │   ├── transcription/
-│   │   └── whisper_service.py           — Chargement modèle + transcription faster-whisper
-│   ├── llm_processing/                  — (vide, préparé pour Phase 2)
+│   │   └── whisper_service.py           — Service faster-whisper
+│   ├── llm_processing/
+│   │   ├── ollama_client.py             — Client HTTP Ollama (streaming)
+│   │   └── summarizer.py               — Résumé automatique via LLM
 │   ├── outputs/
 │   │   └── exports.py                   — Export TXT, JSON, SRT, VTT, Markdown
 │   └── api/
 │       ├── deps.py                      — Auth (API key)
 │       └── routes/
-│           ├── transcription.py         — POST /transcribe, GET/PATCH /api/transcriptions/*
-│           └── dashboard.py             — GET /, /health, /api/stats, /api/search
-├── static/index.html                    — Frontend SPA (dashboard, upload, historique)
+│           ├── transcription.py         — POST /transcribe, CRUD transcriptions
+│           ├── dashboard.py             — /, /health, /api/stats, /api/search
+│           └── analysis.py              — /api/llm/status, summarize, analyses CRUD
+├── static/index.html                    — Frontend SPA
 ├── requirements.txt                     — deps Python
-├── Dockerfile / Dockerfile.cpu          — Images Docker GPU / CPU
+├── Dockerfile / Dockerfile.cpu          — Images Docker
 ├── docker-compose.yml / .gpu.yml        — Déploiement Docker
 └── data/                                — SQLite DB + fichiers audio
 ```
@@ -38,6 +41,7 @@ speechtotext/
 |-----------|-------------|
 | Pré-traitement audio | Silero VAD (torch) |
 | Transcription | faster-whisper (large-v3) |
+| LLM / Analyse | Ollama + mistral-nemo (12B) |
 | Backend | FastAPI + uvicorn |
 | Base de données | SQLite (aiosqlite) + FTS5 |
 | Audio I/O | PyAV (embarqué avec faster-whisper) |
@@ -47,33 +51,34 @@ speechtotext/
 ## Features implémentées
 
 - [x] **Architecture modulaire** (backend/ avec modules séparés)
-- [x] **Pré-traitement VAD** (Silero VAD) — détection parole/silence, stats envoyées en SSE
+- [x] **Pré-traitement VAD** (Silero VAD) — détection parole/silence, stats SSE + DB
+- [x] **Résumé automatique** (Ollama/mistral-nemo) — streaming SSE, sauvegarde DB, UI intégrée
 - [x] Transcription audio via faster-whisper (modèles tiny/medium/large-v3)
-- [x] Streaming SSE de la progression en temps réel (events: vad → progress → result)
+- [x] Streaming SSE (vad → progress → result | token → done)
 - [x] Détection automatique GPU/CPU
 - [x] Dashboard avec statistiques
 - [x] Historique des transcriptions avec pagination et filtres
-- [x] Recherche full-text (FTS5) dans les segments
+- [x] Recherche full-text (FTS5)
 - [x] Édition inline des segments
 - [x] Exports multi-formats (TXT, JSON, SRT, VTT, Markdown)
 - [x] Stockage audio optionnel
 - [x] Auth par API key (optionnelle)
-- [x] Stockage stats VAD en DB (colonne vad_stats JSON)
+- [x] Upload par chunks (gros fichiers)
 - [x] Déploiement Docker (CPU + GPU)
 
 ## Feature en cours
 
-Aucune — Feature 1 terminée. Prêt pour Feature 2.
+Aucune — Feature 4 terminée. Prêt pour Feature 5.
 
 ## Roadmap
 
 ### PHASE 1 — Amélioration transcription
 - [x] Feature 1 : Restructuration modulaire + pré-traitement audio avec silero-vad
-- [ ] Feature 2 : Segmentation propre + timestamps
-- [ ] Feature 3 : Stockage structuré du transcript
+- [ ] ~~Feature 2~~ : Segmentation (déjà fonctionnelle via faster-whisper)
+- [ ] ~~Feature 3~~ : Stockage structuré (déjà en place dans DB)
 
 ### PHASE 2 — Analyse texte
-- [ ] Feature 4 : Résumé automatique (LLM local)
+- [x] Feature 4 : Résumé automatique (LLM local via Ollama)
 - [ ] Feature 5 : Extraction de points clés
 - [ ] Feature 6 : Extraction d'actions
 
@@ -97,12 +102,14 @@ Aucune — Feature 1 terminée. Prêt pour Feature 2.
 | 2024-03-04 | SQLite + FTS5 | Simple, local, recherche full-text native |
 | 2024-03-04 | SSE pour le streaming | Progression temps réel sans WebSocket |
 | 2024-03-04 | Frontend vanilla (pas de framework) | Simplicité, pas de build step |
-| 2026-03-05 | Architecture modulaire backend/ | Séparation audio_processing/transcription/llm/outputs/api |
-| 2026-03-05 | Silero VAD via torch.hub + PyAV | VAD léger, PyAV déjà dispo via faster-whisper (pas de ffmpeg CLI) |
-| 2026-03-05 | VAD stats en JSON dans DB | Flexible, évite les migrations de colonnes multiples |
+| 2026-03-05 | Architecture modulaire backend/ | Séparation claire des responsabilités |
+| 2026-03-05 | Silero VAD via torch.hub + PyAV | VAD léger, PyAV déjà dispo |
+| 2026-03-05 | Ollama comme runtime LLM | Local, simple, supporte tous les modèles GGUF |
+| 2026-03-05 | Table `analyses` générique | type + content = réutilisable pour résumé, points clés, quiz, etc. |
+| 2026-03-05 | LLM optionnel (graceful degradation) | Bouton grisé si Ollama non dispo (serveur sans LLM) |
 
 ## Déploiement
 
-- **Local** : Windows, venv Python, `uvicorn main:app`
-- **Serveur** : root@77.37.51.185, Docker, `/opt/whisper-stt/`
+- **Local** : Windows, venv Python, Ollama pour le LLM
+- **Serveur** : root@77.37.51.185, Docker, `/opt/whisper-stt/` (pas de LLM pour l'instant)
 - **Workflow** : dev local -> commit/push GitHub -> deploy via SSH/Docker

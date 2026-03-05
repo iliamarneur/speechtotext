@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [0.4.0] - 2026-03-05
+
+### Added
+- **Résumé automatique via LLM (Feature 4)**
+  - Intégration Ollama (mistral-nemo / llama3.2 / tout modèle compatible)
+  - `backend/llm_processing/ollama_client.py` — client HTTP streaming Ollama
+  - `backend/llm_processing/summarizer.py` — prompt de résumé structuré (FR)
+  - `backend/api/routes/analysis.py` — endpoints résumé + analyses CRUD
+  - Streaming SSE des tokens en temps réel
+  - Sauvegarde automatique du résumé en DB (table `analyses`)
+  - UI : bouton "Résumer" dans la vue détail, affichage streaming markdown
+  - Détection automatique de la disponibilité d'Ollama (bouton grisé si absent)
+  - `GET /api/llm/status` — vérification statut LLM + liste des modèles
+- Table `analyses` générique (type, content, model_name) — réutilisable pour futures features
+- Fonction `markdownToHtml()` dans le frontend pour le rendu des résumés
+- Upload par chunks (1MB) pour supporter les gros fichiers audio
+- Heartbeat SSE pour maintenir la connexion pendant le traitement long
+- Timeout keep-alive uvicorn augmenté à 300s
+
+### Changed
+- Page par défaut : transcription au lieu du dashboard
+
 ## [0.3.0] - 2026-03-05
 
 ### Added

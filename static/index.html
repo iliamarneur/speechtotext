@@ -256,6 +256,32 @@
         .mb-2 { margin-bottom: 1rem; }
         .mt-1 { margin-top: 0.5rem; }
         .mt-2 { margin-top: 1rem; }
+
+        /* Summary / Analysis */
+        .summary-card { margin-top: 1.5rem; }
+        .summary-content {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            padding: 1rem; font-size: 0.9rem; line-height: 1.6;
+            color: #cbd5e1; white-space: pre-wrap; min-height: 60px;
+            max-height: 500px; overflow-y: auto;
+        }
+        .summary-content h1, .summary-content h2, .summary-content h3 {
+            color: #f8fafc; margin: 0.8rem 0 0.4rem 0;
+        }
+        .summary-content h1 { font-size: 1.2rem; }
+        .summary-content h2 { font-size: 1.05rem; }
+        .summary-content h3 { font-size: 0.95rem; }
+        .summary-content ul { padding-left: 1.5rem; margin: 0.4rem 0; }
+        .summary-content li { margin: 0.2rem 0; }
+        .summary-content strong { color: #e2e8f0; }
+        .summary-actions { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; }
+        .llm-badge {
+            display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px;
+            font-size: 0.7rem; font-weight: 600; background: #1e3a5f; color: #93c5fd;
+        }
+        .summary-status { font-size: 0.8rem; color: #64748b; }
+        .btn-ai { background: linear-gradient(135deg, #7c3aed, #3b82f6); }
+        .btn-ai:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -365,6 +391,30 @@
 
     function badgeClass(status) {
         return 'badge badge-' + (status || 'pending');
+    }
+
+    function markdownToHtml(md) {
+        if (!md) return '';
+        let html = escHtml(md);
+        // Headers
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+        // Bold and italic
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        // Bullet lists
+        html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+        // Numbered lists
+        html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+        // Line breaks
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
+        // Clean up
+        html = html.replace(/<br><\/ul>/g, '</ul>');
+        html = html.replace(/<ul><br>/g, '<ul>');
+        return html;
     }
 
     // ========================
@@ -769,6 +819,14 @@
                             <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'md')">Markdown</button>
                         </div>
                     </div>
+                    <div class="card summary-card">
+                        <label>Analyse IA</label>
+                        <div class="summary-actions">
+                            <button class="btn btn-sm btn-ai" id="btnSummarize">Résumer</button>
+                            <span class="summary-status" id="summaryStatus"></span>
+                        </div>
+                        <div class="summary-content" id="summaryContent" style="display:none;"></div>
+                    </div>
                 </div>
                 <div>
                     <div class="card">
@@ -821,6 +879,86 @@
                 btn.textContent = 'Sauvegarde !';
                 setTimeout(() => btn.textContent = 'Sauvegarder', 1500);
             } catch {}
+        });
+
+        // --- Résumé IA ---
+        const btnSummarize = document.getElementById('btnSummarize');
+        const summaryContent = document.getElementById('summaryContent');
+        const summaryStatus = document.getElementById('summaryStatus');
+
+        // Charger un résumé existant
+        try {
+            const existing = await api('/api/transcriptions/' + id + '/analysis/summary');
+            if (existing && existing.content) {
+                summaryContent.style.display = 'block';
+                summaryContent.innerHTML = markdownToHtml(existing.content);
+                summaryStatus.textContent = 'Généré avec ' + (existing.model_name || 'LLM') +
+                    ' (' + formatMs(existing.processing_ms) + ')';
+            }
+        } catch (e) {
+            // Pas de résumé existant — c'est normal
+        }
+
+        // Vérifier si le LLM est disponible
+        try {
+            const llmStatus = await api('/api/llm/status');
+            if (!llmStatus.available) {
+                btnSummarize.disabled = true;
+                btnSummarize.title = 'LLM non disponible (Ollama non lancé)';
+                btnSummarize.style.opacity = '0.5';
+            }
+        } catch {
+            btnSummarize.disabled = true;
+            btnSummarize.style.opacity = '0.5';
+        }
+
+        btnSummarize.addEventListener('click', async () => {
+            btnSummarize.disabled = true;
+            summaryContent.style.display = 'block';
+            summaryContent.textContent = '';
+            summaryStatus.textContent = 'Génération en cours...';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/summarize', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            summaryContent.innerHTML = markdownToHtml(fullMd);
+                            summaryContent.scrollTop = summaryContent.scrollHeight;
+                        } else if (event.type === 'done') {
+                            summaryStatus.textContent = 'Terminé (' + formatMs(event.processing_ms) + ')';
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                summaryStatus.textContent = 'Erreur : ' + e.message;
+                summaryStatus.style.color = '#fca5a5';
+            } finally {
+                btnSummarize.disabled = false;
+            }
         });
 
         // Segment click = seek audio

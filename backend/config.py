@@ -20,3 +20,7 @@ API_KEY = os.getenv("API_KEY", "")
 
 # VAD pre-processing
 ENABLE_VAD = os.getenv("ENABLE_VAD", "true").lower() in ("true", "1", "yes")
+
+# LLM (Ollama)
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+LLM_MODEL = os.getenv("LLM_MODEL", "mistral-nemo")

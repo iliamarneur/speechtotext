@@ -1,0 +1,102 @@
+"""Routes pour les analyses LLM (résumé, points clés, etc.)."""
+
+import json
+import time
+
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import StreamingResponse
+
+from backend import config
+from backend.api.deps import verify_api_key
+from backend.database import (
+    get_connection, get_transcription_with_segments,
+    get_analysis, get_analyses, save_analysis_sync,
+)
+from backend.llm_processing import ollama_client
+from backend.llm_processing.summarizer import summarize_stream
+
+router = APIRouter()
+
+
+@router.get("/api/llm/status")
+async def llm_status():
+    """Vérifie si le LLM (Ollama) est disponible."""
+    available = ollama_client.is_available()
+    models = ollama_client.list_models() if available else []
+    return {
+        "available": available,
+        "models": models,
+        "current_model": config.LLM_MODEL,
+    }
+
+
+@router.post("/api/transcriptions/{tid}/summarize", dependencies=[Depends(verify_api_key)])
+async def summarize(tid: int, model: str = Query(None)):
+    """Génère un résumé via LLM en streaming SSE."""
+    if not ollama_client.is_available():
+        raise HTTPException(503, "LLM non disponible. Vérifiez qu'Ollama est lancé.")
+
+    db = await get_connection(config.DB_PATH)
+    try:
+        t = await get_transcription_with_segments(db, tid)
+        if not t:
+            raise HTTPException(404, "Transcription non trouvée.")
+    finally:
+        await db.close()
+
+    segments = t.get("segments", [])
+    if not segments:
+        raise HTTPException(400, "Aucun segment à résumer.")
+
+    full_text = " ".join(s["text"] for s in segments if s.get("text"))
+    if not full_text.strip():
+        raise HTTPException(400, "Le texte de la transcription est vide.")
+
+    filename = t.get("filename", "audio")
+    use_model = model or config.LLM_MODEL
+
+    def generate():
+        start_time = time.time()
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Génération du résumé...'}, ensure_ascii=False)}\n\n"
+
+            for chunk in summarize_stream(full_text, filename=filename, model=use_model):
+                if chunk["done"]:
+                    # Sauvegarder en DB
+                    processing_ms = int((time.time() - start_time) * 1000)
+                    analysis_id = save_analysis_sync(
+                        config.DB_PATH, tid, "summary",
+                        chunk["full_text"], use_model, processing_ms,
+                    )
+                    yield f"data: {json.dumps({'type': 'done', 'analysis_id': analysis_id, 'processing_ms': processing_ms}, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'token', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.get("/api/transcriptions/{tid}/analyses", dependencies=[Depends(verify_api_key)])
+async def list_analyses(tid: int):
+    """Liste toutes les analyses d'une transcription."""
+    db = await get_connection(config.DB_PATH)
+    try:
+        analyses = await get_analyses(db, tid)
+        return {"analyses": analyses}
+    finally:
+        await db.close()
+
+
+@router.get("/api/transcriptions/{tid}/analysis/{analysis_type}", dependencies=[Depends(verify_api_key)])
+async def get_analysis_by_type(tid: int, analysis_type: str):
+    """Récupère la dernière analyse d'un type donné."""
+    db = await get_connection(config.DB_PATH)
+    try:
+        analysis = await get_analysis(db, tid, analysis_type)
+        if not analysis:
+            raise HTTPException(404, f"Aucune analyse de type '{analysis_type}' trouvée.")
+        return analysis
+    finally:
+        await db.close()
