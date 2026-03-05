@@ -16,6 +16,7 @@ from backend.llm_processing import ollama_client
 from backend.llm_processing.summarizer import summarize_stream
 from backend.llm_processing.key_points import extract_key_points_stream
 from backend.llm_processing.actions import extract_actions_stream
+from backend.llm_processing.study_cards import generate_study_cards_stream
 
 router = APIRouter()
 
@@ -162,6 +163,53 @@ async def extract_actions(tid: int, model: str = Query(None)):
                     processing_ms = int((time.time() - start_time) * 1000)
                     analysis_id = save_analysis_sync(
                         config.DB_PATH, tid, "actions",
+                        chunk["full_text"], use_model, processing_ms,
+                    )
+                    yield f"data: {json.dumps({'type': 'done', 'analysis_id': analysis_id, 'processing_ms': processing_ms}, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'token', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.post("/api/transcriptions/{tid}/generate-study-cards", dependencies=[Depends(verify_api_key)])
+async def study_cards(tid: int, model: str = Query(None)):
+    """Genere des fiches d'apprentissage via LLM en streaming SSE."""
+    if not ollama_client.is_available():
+        raise HTTPException(503, "LLM non disponible. Verifiez qu'Ollama est lance.")
+
+    db = await get_connection(config.DB_PATH)
+    try:
+        t = await get_transcription_with_segments(db, tid)
+        if not t:
+            raise HTTPException(404, "Transcription non trouvee.")
+    finally:
+        await db.close()
+
+    segments = t.get("segments", [])
+    if not segments:
+        raise HTTPException(400, "Aucun segment a analyser.")
+
+    full_text = " ".join(s["text"] for s in segments if s.get("text"))
+    if not full_text.strip():
+        raise HTTPException(400, "Le texte de la transcription est vide.")
+
+    filename = t.get("filename", "audio")
+    use_model = model or config.LLM_MODEL
+
+    def generate():
+        start_time = time.time()
+        try:
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Generation des fiches...'}, ensure_ascii=False)}\n\n"
+
+            for chunk in generate_study_cards_stream(full_text, filename=filename, model=use_model):
+                if chunk["done"]:
+                    processing_ms = int((time.time() - start_time) * 1000)
+                    analysis_id = save_analysis_sync(
+                        config.DB_PATH, tid, "study_cards",
                         chunk["full_text"], use_model, processing_ms,
                     )
                     yield f"data: {json.dumps({'type': 'done', 'analysis_id': analysis_id, 'processing_ms': processing_ms}, ensure_ascii=False)}\n\n"

@@ -632,6 +632,16 @@
                 </div>
                 <div class="summary-content" id="uploadActionsContent"></div>
             </div>
+            <div class="card result" id="studyCardsCard" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                    <div style="display:flex;align-items:center;gap:0.8rem;">
+                        <label style="margin:0;">Fiches d'apprentissage</label>
+                        <span class="llm-badge" id="studyCardsBadge"></span>
+                    </div>
+                    <span class="summary-status" id="uploadStudyCardsStatus"></span>
+                </div>
+                <div class="summary-content" id="uploadStudyCardsContent"></div>
+            </div>
         `;
 
         const dropZone = document.getElementById('dropZone');
@@ -662,6 +672,10 @@
         const uploadActionsContent = document.getElementById('uploadActionsContent');
         const uploadActionsStatus = document.getElementById('uploadActionsStatus');
         const actionsBadge = document.getElementById('actionsBadge');
+        const studyCardsCard = document.getElementById('studyCardsCard');
+        const uploadStudyCardsContent = document.getElementById('uploadStudyCardsContent');
+        const uploadStudyCardsStatus = document.getElementById('uploadStudyCardsStatus');
+        const studyCardsBadge = document.getElementById('studyCardsBadge');
 
         let selectedFile = null;
 
@@ -723,6 +737,8 @@
             uploadKeyPointsContent.textContent = '';
             actionsCard.style.display = 'none';
             uploadActionsContent.textContent = '';
+            studyCardsCard.style.display = 'none';
+            uploadStudyCardsContent.textContent = '';
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
             liveText.textContent = '';
@@ -730,6 +746,7 @@
             let summaryMd = '';
             let keyPointsMd = '';
             let actionsMd = '';
+            let studyCardsMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -787,6 +804,12 @@
                                 uploadActionsStatus.textContent = '';
                                 uploadActionsContent.innerHTML = '<span style="color:#64748b;">Extraction des actions...</span>';
                                 actionsMd = '';
+                            } else if (event.analysis === 'study_cards') {
+                                studyCardsCard.style.display = 'block';
+                                studyCardsBadge.textContent = 'Generation en cours...';
+                                uploadStudyCardsStatus.textContent = '';
+                                uploadStudyCardsContent.innerHTML = '<span style="color:#64748b;">Generation des fiches...</span>';
+                                studyCardsMd = '';
                             } else {
                                 summaryCard.style.display = 'block';
                                 summaryBadge.textContent = 'Generation en cours...';
@@ -805,6 +828,11 @@
                                 uploadActionsContent.innerHTML = markdownToHtml(actionsMd);
                                 uploadActionsContent.scrollTop = uploadActionsContent.scrollHeight;
                                 actionsBadge.textContent = 'IA';
+                            } else if (event.analysis === 'study_cards') {
+                                studyCardsMd += event.token;
+                                uploadStudyCardsContent.innerHTML = markdownToHtml(studyCardsMd);
+                                uploadStudyCardsContent.scrollTop = uploadStudyCardsContent.scrollHeight;
+                                studyCardsBadge.textContent = 'IA';
                             } else {
                                 summaryMd += event.token;
                                 uploadSummaryContent.innerHTML = markdownToHtml(summaryMd);
@@ -818,6 +846,9 @@
                             } else if (event.analysis === 'actions') {
                                 uploadActionsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
                                 actionsBadge.textContent = 'IA';
+                            } else if (event.analysis === 'study_cards') {
+                                uploadStudyCardsStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
+                                studyCardsBadge.textContent = 'IA';
                             } else {
                                 uploadSummaryStatus.textContent = 'Genere en ' + formatMs(event.processing_ms);
                                 summaryBadge.textContent = 'IA';
@@ -954,6 +985,19 @@
                             </div>
                         </div>
                         <div class="summary-content" id="actionsContent"></div>
+                    </div>
+                    <div class="card summary-card">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                            <div style="display:flex;align-items:center;gap:0.8rem;">
+                                <label style="margin:0;">Fiches d'apprentissage</label>
+                                <span class="llm-badge" id="detailStudyCardsBadge"></span>
+                            </div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <span class="summary-status" id="studyCardsStatus"></span>
+                                <button class="btn btn-sm btn-ai" id="btnStudyCards">Regenerer</button>
+                            </div>
+                        </div>
+                        <div class="summary-content" id="studyCardsContent"></div>
                     </div>
                 </div>
                 <div>
@@ -1251,6 +1295,83 @@
         }
 
         btnActions.addEventListener('click', runActions);
+
+        // --- Fiches d'apprentissage IA ---
+        const btnStudyCards = document.getElementById('btnStudyCards');
+        const studyCardsContent = document.getElementById('studyCardsContent');
+        const studyCardsStatus = document.getElementById('studyCardsStatus');
+        const detailStudyCardsBadge = document.getElementById('detailStudyCardsBadge');
+
+        try {
+            const existingSc = await api('/api/transcriptions/' + id + '/analysis/study_cards');
+            if (existingSc && existingSc.content) {
+                studyCardsContent.innerHTML = markdownToHtml(existingSc.content);
+                detailStudyCardsBadge.textContent = existingSc.model_name || 'IA';
+                studyCardsStatus.textContent = formatMs(existingSc.processing_ms);
+            } else {
+                studyCardsContent.innerHTML = '<span style="color:#64748b;">Aucune fiche disponible.</span>';
+            }
+        } catch (e) {
+            studyCardsContent.innerHTML = '<span style="color:#64748b;">Aucune fiche disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnStudyCards.disabled = true;
+            btnStudyCards.title = 'LLM non disponible (Ollama non lance)';
+            btnStudyCards.style.opacity = '0.5';
+        }
+
+        async function runStudyCards() {
+            btnStudyCards.disabled = true;
+            studyCardsContent.textContent = '';
+            studyCardsStatus.textContent = 'Generation en cours...';
+            detailStudyCardsBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/generate-study-cards', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            studyCardsContent.innerHTML = markdownToHtml(fullMd);
+                            studyCardsContent.scrollTop = studyCardsContent.scrollHeight;
+                            detailStudyCardsBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            studyCardsStatus.textContent = formatMs(event.processing_ms);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                studyCardsStatus.textContent = 'Erreur : ' + e.message;
+                studyCardsStatus.style.color = '#fca5a5';
+            } finally {
+                btnStudyCards.disabled = false;
+            }
+        }
+
+        btnStudyCards.addEventListener('click', runStudyCards);
 
         // Segment click = seek audio
         if (hasAudio) {
