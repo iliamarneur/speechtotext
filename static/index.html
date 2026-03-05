@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transcription Audio</title>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -325,6 +327,13 @@
         }
         .analysis-panel-header .left { display: flex; align-items: center; gap: 0.8rem; }
         .analysis-panel-header .right { display: flex; align-items: center; gap: 0.5rem; }
+        .mindmap-wrap {
+            background: #ffffff; border-radius: 8px; border: 1px solid #334155;
+            position: relative; overflow: hidden;
+        }
+        .mindmap-wrap svg { width: 100%; height: 450px; display: block; }
+        .mindmap-wrap .markmap-node text { fill: #1e293b; font-size: 14px; font-weight: 500; }
+        .mindmap-wrap .markmap-node circle { stroke-width: 2px; }
     </style>
 </head>
 <body>
@@ -458,6 +467,56 @@
         html = html.replace(/<br><\/ul>/g, '</ul>');
         html = html.replace(/<ul><br>/g, '<ul>');
         return html;
+    }
+
+    // Parse Markdown headings/bullets into markmap tree structure
+    function mdToMarkmapTree(md) {
+        const lines = md.split('\n').filter(l => l.trim());
+        const root = { content: '', children: [], depth: 0 };
+        const stack = [root];
+
+        for (const line of lines) {
+            let node = null;
+            const hMatch = line.match(/^(#{1,6})\s+(.+)$/);
+            const bMatch = line.match(/^(\s*)-\s+(.+)$/);
+
+            if (hMatch) {
+                const depth = hMatch[1].length;
+                node = { content: hMatch[2].trim(), children: [], depth };
+            } else if (bMatch) {
+                const indent = bMatch[1].length;
+                const depth = 7 + Math.floor(indent / 2);
+                node = { content: bMatch[2].trim(), children: [], depth };
+            }
+
+            if (node) {
+                while (stack.length > 1 && stack[stack.length - 1].depth >= node.depth) {
+                    stack.pop();
+                }
+                stack[stack.length - 1].children.push(node);
+                stack.push(node);
+            }
+        }
+
+        return root.children.length === 1 ? root.children[0] : root.children.length ? { content: 'Carte mentale', children: root.children, depth: 0 } : { content: 'Vide', children: [], depth: 0 };
+    }
+
+    function renderMarkmapSvg(svgEl, md) {
+        if (!md || typeof markmap === 'undefined') return false;
+        try {
+            const tree = mdToMarkmapTree(md);
+            svgEl.innerHTML = '';
+            markmap.Markmap.create(svgEl, {
+                maxWidth: 280,
+                colorFreezeLevel: 2,
+                color: (node) => {
+                    const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#ef4444','#06b6d4','#84cc16'];
+                    const idx = node.state?.path ? (node.state.path.split('.')[1] || 0) : 0;
+                    return colors[idx % colors.length];
+                },
+            }, tree);
+            return true;
+        } catch(e) { console.warn('Markmap render error:', e); return false; }
     }
 
     // ========================
@@ -653,6 +712,7 @@
                     <button class="analysis-tab" data-tab="actions"><span class="tab-dot idle" id="dotActions"></span><span class="tab-icon">&#9989;</span>Actions</button>
                     <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="dotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
                     <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="dotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
+                    <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="dotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                 </div>
                 <div class="analysis-panel active" id="panelSummary">
                     <div class="analysis-panel-header">
@@ -689,6 +749,14 @@
                     </div>
                     <div class="summary-content" id="uploadQuizContent"></div>
                 </div>
+                <div class="analysis-panel" id="panelMindmap">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="mindmapBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadMindmapStatus"></span></div>
+                    </div>
+                    <div class="mindmap-wrap" id="uploadMindmapWrap" style="display:none;"><svg id="uploadMindmapSvg"></svg></div>
+                    <div class="summary-content" id="uploadMindmapContent"></div>
+                </div>
             </div>
         `;
 
@@ -724,6 +792,10 @@
         const uploadQuizContent = document.getElementById('uploadQuizContent');
         const uploadQuizStatus = document.getElementById('uploadQuizStatus');
         const quizBadge = document.getElementById('quizBadge');
+        const uploadMindmapContent = document.getElementById('uploadMindmapContent');
+        const uploadMindmapStatus = document.getElementById('uploadMindmapStatus');
+        const mindmapBadge = document.getElementById('mindmapBadge');
+        const uploadMindmapWrap = document.getElementById('uploadMindmapWrap');
 
         // Tab switching for upload analysis tabs
         document.getElementById('uploadAnalysisTabs').addEventListener('click', (e) => {
@@ -798,6 +870,8 @@
             uploadActionsContent.textContent = '';
             uploadStudyCardsContent.textContent = '';
             uploadQuizContent.textContent = '';
+            uploadMindmapContent.textContent = '';
+            uploadMindmapWrap.style.display = 'none';
             document.querySelectorAll('#analysisContainer .tab-dot').forEach(d => { d.className = 'tab-dot idle'; });
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
@@ -808,6 +882,7 @@
             let actionsMd = '';
             let studyCardsMd = '';
             let quizMd = '';
+            let mindmapMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -860,6 +935,7 @@
                                 actions:     { content: uploadActionsContent,    status: uploadActionsStatus,    badge: actionsBadge,    md: () => actionsMd = '',     dot: 'dotActions',     msg: 'Extraction des actions...' },
                                 study_cards: { content: uploadStudyCardsContent, status: uploadStudyCardsStatus, badge: studyCardsBadge, md: () => studyCardsMd = '',  dot: 'dotStudyCards',  msg: 'Generation des fiches...' },
                                 quiz:        { content: uploadQuizContent,       status: uploadQuizStatus,       badge: quizBadge,       md: () => quizMd = '',        dot: 'dotQuiz',        msg: 'Generation du quiz...' },
+                                mindmap:     { content: uploadMindmapContent,    status: uploadMindmapStatus,    badge: mindmapBadge,    md: () => mindmapMd = '',     dot: 'dotMindmap',     msg: 'Generation de la carte mentale...' },
                             };
                             const a = aMap[event.analysis] || aMap.summary;
                             a.md();
@@ -883,6 +959,7 @@
                                 actions:     { content: uploadActionsContent,    badge: actionsBadge,    get: () => actionsMd,     set: v => actionsMd = v },
                                 study_cards: { content: uploadStudyCardsContent, badge: studyCardsBadge, get: () => studyCardsMd,  set: v => studyCardsMd = v },
                                 quiz:        { content: uploadQuizContent,       badge: quizBadge,       get: () => quizMd,        set: v => quizMd = v },
+                                mindmap:     { content: uploadMindmapContent,    badge: mindmapBadge,    get: () => mindmapMd,     set: v => mindmapMd = v },
                             };
                             const t = tMap[event.analysis] || tMap.summary;
                             t.set(t.get() + event.token);
@@ -896,12 +973,21 @@
                                 actions:     { status: uploadActionsStatus,    badge: actionsBadge,    dot: 'dotActions' },
                                 study_cards: { status: uploadStudyCardsStatus, badge: studyCardsBadge, dot: 'dotStudyCards' },
                                 quiz:        { status: uploadQuizStatus,       badge: quizBadge,       dot: 'dotQuiz' },
+                                mindmap:     { status: uploadMindmapStatus,    badge: mindmapBadge,    dot: 'dotMindmap' },
                             };
                             const d = dMap[event.analysis] || dMap.summary;
                             d.status.textContent = formatMs(event.processing_ms);
                             d.badge.textContent = 'IA';
                             const dot = document.getElementById(d.dot);
                             if (dot) dot.className = 'tab-dot done';
+                            // Render mindmap if markmap available
+                            if (event.analysis === 'mindmap' && mindmapMd) {
+                                const svg = document.getElementById('uploadMindmapSvg');
+                                if (renderMarkmapSvg(svg, mindmapMd)) {
+                                    uploadMindmapWrap.style.display = 'block';
+                                    uploadMindmapContent.style.display = 'none';
+                                }
+                            }
                         } else if (event.type === 'error') {
                             throw new Error(event.message);
                         }
@@ -1004,6 +1090,7 @@
                             <button class="analysis-tab" data-tab="actions"><span class="tab-dot idle" id="detailDotActions"></span><span class="tab-icon">&#9989;</span>Actions</button>
                             <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="detailDotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
                             <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="detailDotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
+                            <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="detailDotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                         </div>
                         <div class="analysis-panel active" id="detailPanelSummary">
                             <div class="analysis-panel-header">
@@ -1039,6 +1126,14 @@
                                 <div class="right"><button class="btn btn-sm btn-ai" id="btnQuiz">Regenerer</button></div>
                             </div>
                             <div class="summary-content" id="quizContent"></div>
+                        </div>
+                        <div class="analysis-panel" id="detailPanelMindmap">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailMindmapBadge"></span><span class="summary-status" id="mindmapStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnMindmap">Regenerer</button></div>
+                            </div>
+                            <div class="mindmap-wrap" id="detailMindmapWrap" style="display:none;"><svg id="detailMindmapSvg"></svg></div>
+                            <div class="summary-content" id="mindmapContent"></div>
                         </div>
                     </div>
                 </div>
@@ -1515,6 +1610,97 @@
         }
 
         btnQuiz.addEventListener('click', runQuiz);
+
+        // --- Carte mentale IA ---
+        const btnMindmap = document.getElementById('btnMindmap');
+        const mindmapContent = document.getElementById('mindmapContent');
+        const mindmapStatus = document.getElementById('mindmapStatus');
+        const detailMindmapBadge = document.getElementById('detailMindmapBadge');
+        const detailMindmapWrap = document.getElementById('detailMindmapWrap');
+
+        function renderDetailMindmap(md) {
+            const svg = document.getElementById('detailMindmapSvg');
+            if (renderMarkmapSvg(svg, md)) {
+                detailMindmapWrap.style.display = 'block';
+                mindmapContent.style.display = 'none';
+            }
+        }
+
+        try {
+            const existingMm = await api('/api/transcriptions/' + id + '/analysis/mindmap');
+            if (existingMm && existingMm.content) {
+                mindmapContent.innerHTML = markdownToHtml(existingMm.content);
+                detailMindmapBadge.textContent = existingMm.model_name || 'IA';
+                mindmapStatus.textContent = formatMs(existingMm.processing_ms);
+                setDetailDot('mindmap', 'done');
+                renderDetailMindmap(existingMm.content);
+            } else {
+                mindmapContent.innerHTML = '<span style="color:#64748b;">Aucune carte mentale disponible.</span>';
+            }
+        } catch (e) {
+            mindmapContent.innerHTML = '<span style="color:#64748b;">Aucune carte mentale disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnMindmap.disabled = true;
+            btnMindmap.title = 'LLM non disponible (Ollama non lance)';
+            btnMindmap.style.opacity = '0.5';
+        }
+
+        async function runMindmap() {
+            btnMindmap.disabled = true;
+            mindmapContent.textContent = '';
+            mindmapContent.style.display = 'block';
+            detailMindmapWrap.style.display = 'none';
+            mindmapStatus.textContent = 'Generation en cours...';
+            detailMindmapBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/generate-mindmap', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            mindmapContent.innerHTML = markdownToHtml(fullMd);
+                            mindmapContent.scrollTop = mindmapContent.scrollHeight;
+                            detailMindmapBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            mindmapStatus.textContent = formatMs(event.processing_ms);
+                            renderDetailMindmap(fullMd);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                mindmapStatus.textContent = 'Erreur : ' + e.message;
+                mindmapStatus.style.color = '#fca5a5';
+            } finally {
+                btnMindmap.disabled = false;
+            }
+        }
+
+        btnMindmap.addEventListener('click', runMindmap);
 
         // Segment click = seek audio
         if (hasAudio) {
