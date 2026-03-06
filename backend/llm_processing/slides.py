@@ -43,7 +43,7 @@ Transcription :
 {text}"""
 
 
-def generate_slides_stream(text: str, filename: str = "audio", model: str = None):
+def generate_slides_stream(text: str, filename: str = "audio", model: str = None, custom_instructions: str = None):
     """
     Genere des slides en streaming.
 
@@ -52,6 +52,8 @@ def generate_slides_stream(text: str, filename: str = "audio", model: str = None
     """
     model = model or LLM_MODEL
     prompt = SLIDES_PROMPT_TEMPLATE.format(filename=filename, text=text)
+    if custom_instructions:
+        prompt += "\n\nInstructions supplementaires de l'utilisateur :\n" + custom_instructions
 
     full_response = ""
     for chunk in generate_stream(prompt, model, system=SYSTEM_PROMPT):

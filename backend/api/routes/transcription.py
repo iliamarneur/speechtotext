@@ -29,6 +29,7 @@ from backend.llm_processing.quiz import generate_quiz_stream
 from backend.llm_processing.mindmap import generate_mindmap_stream
 from backend.llm_processing.slides import generate_slides_stream
 from backend.llm_processing.infographic import generate_infographic_stream
+from backend.llm_processing.data_table import extract_data_table_stream
 
 router = APIRouter()
 
@@ -295,6 +296,24 @@ async def transcribe(
                             yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'infographic', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     print(f"[LLM] Erreur infographie automatique (ignorée): {e}")
+
+                # --- Étape 11 : Analyse LLM automatique (tableaux de données) ---
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'data_table'}, ensure_ascii=False)}\n\n"
+                    dt_start = time.time()
+
+                    for chunk in extract_data_table_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            dt_ms = int((time.time() - dt_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "data_table",
+                                chunk["full_text"], use_model, dt_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'data_table', 'processing_ms': dt_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'data_table', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur tableaux données automatique (ignorée): {e}")
 
         except Exception as e:
             mark_error_sync(config.DB_PATH, tid, str(e))

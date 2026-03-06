@@ -25,7 +25,7 @@ Transcription :
 {text}"""
 
 
-def generate_study_cards_stream(text: str, filename: str = "audio", model: str = None):
+def generate_study_cards_stream(text: str, filename: str = "audio", model: str = None, custom_instructions: str = None):
     """
     Genere des fiches d'apprentissage en streaming.
 
@@ -34,6 +34,8 @@ def generate_study_cards_stream(text: str, filename: str = "audio", model: str =
     """
     model = model or LLM_MODEL
     prompt = STUDY_CARDS_PROMPT_TEMPLATE.format(filename=filename, text=text)
+    if custom_instructions:
+        prompt += "\n\nInstructions supplementaires de l'utilisateur :\n" + custom_instructions
 
     full_response = ""
     for chunk in generate_stream(prompt, model, system=SYSTEM_PROMPT):

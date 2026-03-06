@@ -19,7 +19,10 @@ speechtotext/
 │   │   └── whisper_service.py           — Service faster-whisper
 │   ├── llm_processing/
 │   │   ├── ollama_client.py             — Client HTTP Ollama (streaming)
-│   │   └── summarizer.py               — Résumé automatique via LLM
+│   │   ├── summarizer.py               — Résumé automatique via LLM
+│   │   ├── key_points.py              — Extraction de points clés via LLM
+│   │   ├── actions.py                 — Extraction d'actions via LLM
+│   │   └── study_cards.py            — Fiches d'apprentissage via LLM
 │   ├── outputs/
 │   │   └── exports.py                   — Export TXT, JSON, SRT, VTT, Markdown
 │   └── api/
@@ -53,6 +56,13 @@ speechtotext/
 - [x] **Architecture modulaire** (backend/ avec modules séparés)
 - [x] **Pré-traitement VAD** (Silero VAD) — détection parole/silence, stats SSE + DB
 - [x] **Résumé automatique** (Ollama/mistral-nemo) — streaming SSE, sauvegarde DB, UI intégrée
+- [x] **Extraction de points clés** — points thématiques structurés, streaming SSE, UI intégrée
+- [x] **Extraction d'actions** — tâches, décisions, questions en suspens, streaming SSE, UI intégrée
+- [x] **Fiches d'apprentissage** — fiches structurées (définition, exemple, à retenir), streaming SSE, UI intégrée
+- [x] **Quiz automatique** — QCM généré par LLM, streaming SSE, UI intégrée
+- [x] **Carte mentale** — Markmap (d3 + markmap-view), rendu SVG, streaming SSE, UI intégrée
+- [x] **Slides** — Présentation Markdown avec viewer interactif, streaming SSE, UI intégrée
+- [x] **Infographie** — Graphique Vega-Lite généré par LLM, rendu SVG, streaming SSE, UI intégrée
 - [x] Transcription audio via faster-whisper (modèles tiny/medium/large-v3)
 - [x] Streaming SSE (vad → progress → result | token → done)
 - [x] Détection automatique GPU/CPU
@@ -68,7 +78,7 @@ speechtotext/
 
 ## Feature en cours
 
-Aucune — Feature 4 terminée. Prêt pour Feature 5.
+Feature 12 — Extraction de tableaux de données.
 
 ## Roadmap
 
@@ -79,20 +89,20 @@ Aucune — Feature 4 terminée. Prêt pour Feature 5.
 
 ### PHASE 2 — Analyse texte
 - [x] Feature 4 : Résumé automatique (LLM local via Ollama)
-- [ ] Feature 5 : Extraction de points clés
-- [ ] Feature 6 : Extraction d'actions
+- [x] Feature 5 : Extraction de points clés
+- [x] Feature 6 : Extraction d'actions
 
 ### PHASE 3 — Outputs éducatifs
-- [ ] Feature 7 : Fiches d'apprentissage
-- [ ] Feature 8 : Quiz automatique
+- [x] Feature 7 : Fiches d'apprentissage
+- [x] Feature 8 : Quiz automatique
 
 ### PHASE 4 — Visualisations
-- [ ] Feature 9 : Carte mentale (mermaid/markmap)
-- [ ] Feature 10 : Slides (marp)
-- [ ] Feature 11 : Infographie (vega-lite)
+- [x] Feature 9 : Carte mentale (markmap)
+- [x] Feature 10 : Slides (viewer interactif)
+- [x] Feature 11 : Infographie (vega-lite)
 
 ### PHASE 5 — Data
-- [ ] Feature 12 : Extraction de tableaux de données
+- [ ] Feature 12 : Extraction de tableaux de données (en cours)
 
 ## Décisions techniques
 

@@ -374,6 +374,49 @@
         }
         .vega-wrap .vega-embed { width: 100%; }
         .vega-wrap .vega-embed details { display: none; }
+        .btn-download {
+            background: #1e3a5f; border: 1px solid #3b82f6; color: #93c5fd; font-size: 0.8rem;
+            padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; margin-right: 0.5rem;
+            transition: all 0.2s; text-decoration: none; display: inline-block; font-weight: 600;
+        }
+        .btn-download:hover { background: #2563eb; color: #fff; border-color: #60a5fa; }
+        .export-analyses-section {
+            display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem;
+            padding-top: 0.8rem; border-top: 1px solid #1e293b;
+        }
+        .instructions-toggle {
+            background: #1a1a2e; border: 1px solid #6366f1; color: #a5b4fc; font-size: 0.8rem;
+            padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; margin-right: 0.5rem;
+            transition: all 0.2s; font-weight: 600;
+        }
+        .instructions-toggle:hover { background: #4f46e5; color: #fff; border-color: #818cf8; }
+        .instructions-toggle.active { background: #4f46e5; color: #fff; border-color: #818cf8; }
+        .instructions-area {
+            display: none; margin-top: 0.5rem; margin-bottom: 0.5rem;
+        }
+        .instructions-area.visible { display: block; }
+        .instructions-area textarea {
+            width: 100%; min-height: 60px; max-height: 200px; resize: vertical;
+            background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+            border-radius: 6px; padding: 0.5rem; font-size: 0.85rem; font-family: inherit;
+        }
+        .instructions-area textarea:focus { outline: none; border-color: #818cf8; }
+        .instructions-area textarea::placeholder { color: #475569; }
+        .md-table {
+            width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem;
+        }
+        .md-table th, .md-table td {
+            border: 1px solid #334155; padding: 0.5rem 0.75rem; text-align: left;
+        }
+        .md-table th {
+            background: #1e293b; color: #e2e8f0; font-weight: 600;
+        }
+        .md-table td {
+            background: #0f172a; color: #cbd5e1;
+        }
+        .md-table tr:hover td {
+            background: #1e293b;
+        }
     </style>
 </head>
 <body>
@@ -500,6 +543,21 @@
         html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
         // Numbered lists
         html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+        // Tables — process before line breaks
+        html = html.replace(/((?:^\|.+\|$\n?)+)/gm, function(tableBlock) {
+            const rows = tableBlock.trim().split('\n').filter(r => r.trim());
+            if (rows.length < 2) return tableBlock;
+            let out = '<table class="md-table">';
+            rows.forEach((row, i) => {
+                // Skip separator row (| --- | --- |)
+                if (/^\|[\s\-:|]+\|$/.test(row)) return;
+                const cells = row.split('|').slice(1, -1).map(c => c.trim());
+                const tag = i === 0 ? 'th' : 'td';
+                out += '<tr>' + cells.map(c => '<' + tag + '>' + c + '</' + tag + '>').join('') + '</tr>';
+            });
+            out += '</table>';
+            return out;
+        });
         // Line breaks
         html = html.replace(/\n\n/g, '<br><br>');
         html = html.replace(/\n/g, '<br>');
@@ -797,6 +855,7 @@
                     <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="dotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                     <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="dotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
                     <button class="analysis-tab" data-tab="infographic"><span class="tab-dot idle" id="dotInfographic"></span><span class="tab-icon">&#128202;</span>Infographie</button>
+                    <button class="analysis-tab" data-tab="data_table"><span class="tab-dot idle" id="dotDataTable"></span><span class="tab-icon">&#128203;</span>Tableaux</button>
                 </div>
                 <div class="analysis-panel active" id="panelSummary">
                     <div class="analysis-panel-header">
@@ -864,6 +923,13 @@
                     <div class="vega-wrap" id="uploadVegaWrap" style="display:none;"></div>
                     <div class="summary-content" id="uploadInfographicContent"></div>
                 </div>
+                <div class="analysis-panel" id="panelDataTable">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="dataTableBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadDataTableStatus"></span></div>
+                    </div>
+                    <div class="summary-content" id="uploadDataTableContent"></div>
+                </div>
             </div>
         `;
 
@@ -911,6 +977,9 @@
         const uploadInfographicStatus = document.getElementById('uploadInfographicStatus');
         const infographicBadge = document.getElementById('infographicBadge');
         const uploadVegaWrap = document.getElementById('uploadVegaWrap');
+        const uploadDataTableContent = document.getElementById('uploadDataTableContent');
+        const uploadDataTableStatus = document.getElementById('uploadDataTableStatus');
+        const dataTableBadge = document.getElementById('dataTableBadge');
 
         // Tab switching for upload analysis tabs
         document.getElementById('uploadAnalysisTabs').addEventListener('click', (e) => {
@@ -1002,6 +1071,7 @@
             let mindmapMd = '';
             let slidesMd = '';
             let infographicMd = '';
+            let dataTableMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -1057,6 +1127,7 @@
                                 mindmap:     { content: uploadMindmapContent,    status: uploadMindmapStatus,    badge: mindmapBadge,    md: () => mindmapMd = '',     dot: 'dotMindmap',     msg: 'Generation de la carte mentale...' },
                                 slides:      { content: uploadSlidesContent,     status: uploadSlidesStatus,     badge: slidesBadge,     md: () => slidesMd = '',      dot: 'dotSlides',      msg: 'Generation des slides...' },
                                 infographic: { content: uploadInfographicContent, status: uploadInfographicStatus, badge: infographicBadge, md: () => infographicMd = '', dot: 'dotInfographic', msg: 'Generation de l\'infographie...' },
+                                data_table:  { content: uploadDataTableContent,  status: uploadDataTableStatus,  badge: dataTableBadge,  md: () => dataTableMd = '',   dot: 'dotDataTable',   msg: 'Extraction des tableaux...' },
                             };
                             const a = aMap[event.analysis] || aMap.summary;
                             a.md();
@@ -1083,6 +1154,7 @@
                                 mindmap:     { content: uploadMindmapContent,    badge: mindmapBadge,    get: () => mindmapMd,     set: v => mindmapMd = v },
                                 slides:      { content: uploadSlidesContent,     badge: slidesBadge,     get: () => slidesMd,      set: v => slidesMd = v },
                                 infographic: { content: uploadInfographicContent, badge: infographicBadge, get: () => infographicMd, set: v => infographicMd = v },
+                                data_table:  { content: uploadDataTableContent,  badge: dataTableBadge,  get: () => dataTableMd,   set: v => dataTableMd = v },
                             };
                             const t = tMap[event.analysis] || tMap.summary;
                             t.set(t.get() + event.token);
@@ -1099,6 +1171,7 @@
                                 mindmap:     { status: uploadMindmapStatus,    badge: mindmapBadge,    dot: 'dotMindmap' },
                                 slides:      { status: uploadSlidesStatus,     badge: slidesBadge,     dot: 'dotSlides' },
                                 infographic: { status: uploadInfographicStatus, badge: infographicBadge, dot: 'dotInfographic' },
+                                data_table:  { status: uploadDataTableStatus,  badge: dataTableBadge,  dot: 'dotDataTable' },
                             };
                             const d = dMap[event.analysis] || dMap.summary;
                             d.status.textContent = formatMs(event.processing_ms);
@@ -1230,55 +1303,63 @@
                             <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="detailDotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                             <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="detailDotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
                             <button class="analysis-tab" data-tab="infographic"><span class="tab-dot idle" id="detailDotInfographic"></span><span class="tab-icon">&#128202;</span>Infographie</button>
+                            <button class="analysis-tab" data-tab="data_table"><span class="tab-dot idle" id="detailDotDataTable"></span><span class="tab-icon">&#128203;</span>Tableaux</button>
                         </div>
                         <div class="analysis-panel active" id="detailPanelSummary">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailSummaryBadge"></span><span class="summary-status" id="summaryStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnSummarize">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=summary" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrSummary">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnSummarize">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaSummary"><textarea id="instrSummary" placeholder="Ex: Fais un resume plus court, en 3 phrases maximum..."></textarea></div>
                             <div class="summary-content" id="summaryContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelKeyPoints">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailKeyPointsBadge"></span><span class="summary-status" id="keyPointsStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnKeyPoints">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=key_points" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrKeyPoints">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnKeyPoints">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaKeyPoints"><textarea id="instrKeyPoints" placeholder="Ex: Organise les points par ordre d'importance..."></textarea></div>
                             <div class="summary-content" id="keyPointsContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelActions">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailActionsBadge"></span><span class="summary-status" id="actionsStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnActions">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=actions" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrActions">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnActions">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaActions"><textarea id="instrActions" placeholder="Ex: Ajoute des priorites (haute/moyenne/basse) a chaque action..."></textarea></div>
                             <div class="summary-content" id="actionsContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelStudyCards">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailStudyCardsBadge"></span><span class="summary-status" id="studyCardsStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnStudyCards">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=study_cards" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrStudyCards">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnStudyCards">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaStudyCards"><textarea id="instrStudyCards" placeholder="Ex: Cree des fiches de type question/reponse..."></textarea></div>
                             <div class="summary-content" id="studyCardsContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelQuiz">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailQuizBadge"></span><span class="summary-status" id="quizStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnQuiz">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=quiz" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrQuiz">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnQuiz">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaQuiz"><textarea id="instrQuiz" placeholder="Ex: Genere 20 questions, uniquement des QCM..."></textarea></div>
                             <div class="summary-content" id="quizContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelMindmap">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailMindmapBadge"></span><span class="summary-status" id="mindmapStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnMindmap">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=mindmap" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrMindmap">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnMindmap">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaMindmap"><textarea id="instrMindmap" placeholder="Ex: Limite a 5 branches principales, plus de details..."></textarea></div>
                             <div class="mindmap-wrap" id="detailMindmapWrap" style="display:none;"><svg id="detailMindmapSvg"></svg></div>
                             <div class="summary-content" id="mindmapContent"></div>
                         </div>
                         <div class="analysis-panel" id="detailPanelSlides">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailSlidesBadge"></span><span class="summary-status" id="slidesStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnSlides">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=slides" title="Telecharger PDF">&#11015;</a><a class="btn-download" href="/api/transcriptions/${id}/export-slides-pptx" title="Telecharger PowerPoint" style="color:#c084fc;border-color:#7c3aed;">PPTX</a><button class="instructions-toggle" id="toggleInstrSlides">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnSlides">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaSlides"><textarea id="instrSlides" placeholder="Ex: Maximum 6 slides, style plus visuel..."></textarea></div>
                             <div class="slides-viewer" id="detailSlidesViewer" style="display:none;">
                                 <div class="slide-display" id="detailSlideDisplay"></div>
                                 <div class="slides-nav">
@@ -1292,10 +1373,23 @@
                         <div class="analysis-panel" id="detailPanelInfographic">
                             <div class="analysis-panel-header">
                                 <div class="left"><span class="llm-badge" id="detailInfographicBadge"></span><span class="summary-status" id="infographicStatus"></span></div>
-                                <div class="right"><button class="btn btn-sm btn-ai" id="btnInfographic">Regenerer</button></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=infographic" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrInfographic">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnInfographic">Regenerer</button></div>
                             </div>
+                            <div class="instructions-area" id="instrAreaInfographic"><textarea id="instrInfographic" placeholder="Ex: Utilise un camembert (pie chart) au lieu de barres..."></textarea></div>
                             <div class="vega-wrap" id="detailVegaWrap" style="display:none;"></div>
                             <div class="summary-content" id="infographicContent"></div>
+                        </div>
+                        <div class="analysis-panel" id="detailPanelDataTable">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailDataTableBadge"></span><span class="summary-status" id="dataTableStatus"></span></div>
+                                <div class="right"><a class="btn-download" href="/api/transcriptions/${id}/export-analysis?type=data_table" title="Telecharger PDF">&#11015; PDF</a><button class="instructions-toggle" id="toggleInstrDataTable">&#9881; Instructions</button><button class="btn btn-sm btn-ai" id="btnDataTable">Regenerer</button></div>
+                            </div>
+                            <div class="instructions-area" id="instrAreaDataTable"><textarea id="instrDataTable" placeholder="Ex: Trie les tableaux par date, ajoute une colonne de commentaires..."></textarea></div>
+                            <div class="summary-content" id="dataTableContent"></div>
+                        </div>
+                        <div class="export-analyses-section">
+                            <a class="btn btn-sm" style="background:#7c3aed;text-decoration:none;" href="/api/transcriptions/${id}/export-all-analyses">&#11015; Tout exporter (PDF)</a>
+                            <a class="btn btn-sm btn-secondary" style="text-decoration:none;" href="/api/transcriptions/${id}/export-slides-pptx">&#11015; Slides (PPTX)</a>
                         </div>
                     </div>
                 </div>
@@ -1407,6 +1501,32 @@
             btnSummarize.style.opacity = '0.5';
         }
 
+        // --- Instructions toggle (generic) ---
+        document.querySelectorAll('.instructions-toggle').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const areaId = btn.id.replace('toggleInstr', 'instrArea');
+                const area = document.getElementById(areaId);
+                if (area) {
+                    area.classList.toggle('visible');
+                    btn.classList.toggle('active');
+                }
+            });
+        });
+
+        function getInstructions(textareaId) {
+            const el = document.getElementById(textareaId);
+            return el && el.value.trim() ? el.value.trim() : null;
+        }
+
+        function fetchWithInstructions(url, instructions) {
+            const opts = { method: 'POST' };
+            if (instructions) {
+                opts.headers = { 'Content-Type': 'application/json' };
+                opts.body = JSON.stringify({ instructions });
+            }
+            return fetch(url, opts);
+        }
+
         async function runSummarize() {
             btnSummarize.disabled = true;
             summaryContent.textContent = '';
@@ -1414,7 +1534,8 @@
             detailSummaryBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/summarize', { method: 'POST' });
+                const instr = getInstructions('instrSummary');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/summarize', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1493,7 +1614,8 @@
             detailKeyPointsBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/extract-key-points', { method: 'POST' });
+                const instr = getInstructions('instrKeyPoints');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/extract-key-points', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1572,7 +1694,8 @@
             detailActionsBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/extract-actions', { method: 'POST' });
+                const instr = getInstructions('instrActions');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/extract-actions', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1650,7 +1773,8 @@
             detailStudyCardsBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/generate-study-cards', { method: 'POST' });
+                const instr = getInstructions('instrStudyCards');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/generate-study-cards', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1728,7 +1852,8 @@
             detailQuizBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/generate-quiz', { method: 'POST' });
+                const instr = getInstructions('instrQuiz');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/generate-quiz', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1818,7 +1943,8 @@
             detailMindmapBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/generate-mindmap', { method: 'POST' });
+                const instr = getInstructions('instrMindmap');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/generate-mindmap', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1906,7 +2032,8 @@
             detailSlidesBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/generate-slides', { method: 'POST' });
+                const instr = getInstructions('instrSlides');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/generate-slides', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -1994,7 +2121,8 @@
             detailInfographicBadge.textContent = '';
 
             try {
-                const resp = await fetch('/api/transcriptions/' + id + '/generate-infographic', { method: 'POST' });
+                const instr = getInstructions('instrInfographic');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/generate-infographic', instr);
                 if (!resp.ok) {
                     const err = await resp.json().catch(() => ({ detail: resp.statusText }));
                     throw new Error(err.detail || resp.statusText);
@@ -2039,6 +2167,85 @@
         }
 
         btnInfographic.addEventListener('click', runInfographic);
+
+        // === Data Table ===
+        const btnDataTable = document.getElementById('btnDataTable');
+        const dataTableContent = document.getElementById('dataTableContent');
+        const dataTableStatusEl = document.getElementById('dataTableStatus');
+        const detailDataTableBadge = document.getElementById('detailDataTableBadge');
+
+        try {
+            const existingDt = await api('/api/transcriptions/' + id + '/analysis/data_table');
+            if (existingDt && existingDt.content) {
+                dataTableContent.innerHTML = markdownToHtml(existingDt.content);
+                detailDataTableBadge.textContent = existingDt.model_name || 'IA';
+                dataTableStatusEl.textContent = formatMs(existingDt.processing_ms);
+                setDetailDot('data_table', 'done');
+            } else {
+                dataTableContent.innerHTML = '<span style="color:#64748b;">Aucun tableau disponible.</span>';
+            }
+        } catch (e) {
+            dataTableContent.innerHTML = '<span style="color:#64748b;">Aucun tableau disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnDataTable.disabled = true;
+            btnDataTable.title = 'LLM non disponible (Ollama non lance)';
+            btnDataTable.style.opacity = '0.5';
+        }
+
+        async function runDataTable() {
+            btnDataTable.disabled = true;
+            dataTableContent.textContent = '';
+            dataTableStatusEl.textContent = 'Generation en cours...';
+            detailDataTableBadge.textContent = '';
+
+            try {
+                const instr = getInstructions('instrDataTable');
+                const resp = await fetchWithInstructions('/api/transcriptions/' + id + '/extract-data-table', instr);
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            dataTableContent.innerHTML = markdownToHtml(fullMd);
+                            dataTableContent.scrollTop = dataTableContent.scrollHeight;
+                            detailDataTableBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            dataTableStatusEl.textContent = formatMs(event.processing_ms);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                dataTableStatusEl.textContent = 'Erreur : ' + e.message;
+                dataTableStatusEl.style.color = '#fca5a5';
+            } finally {
+                btnDataTable.disabled = false;
+            }
+        }
+
+        btnDataTable.addEventListener('click', runDataTable);
 
         // Segment click = seek audio
         if (hasAudio) {

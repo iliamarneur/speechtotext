@@ -27,7 +27,7 @@ Transcription :
 {text}"""
 
 
-def generate_infographic_stream(text: str, filename: str = "audio", model: str = None):
+def generate_infographic_stream(text: str, filename: str = "audio", model: str = None, custom_instructions: str = None):
     """
     Genere une infographie en streaming.
 
@@ -36,6 +36,8 @@ def generate_infographic_stream(text: str, filename: str = "audio", model: str =
     """
     model = model or LLM_MODEL
     prompt = INFOGRAPHIC_PROMPT_TEMPLATE.format(filename=filename, text=text)
+    if custom_instructions:
+        prompt += "\n\nInstructions supplementaires de l'utilisateur :\n" + custom_instructions
 
     full_response = ""
     for chunk in generate_stream(prompt, model, system=SYSTEM_PROMPT):
