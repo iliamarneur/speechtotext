@@ -27,6 +27,7 @@ from backend.llm_processing.actions import extract_actions_stream
 from backend.llm_processing.study_cards import generate_study_cards_stream
 from backend.llm_processing.quiz import generate_quiz_stream
 from backend.llm_processing.mindmap import generate_mindmap_stream
+from backend.llm_processing.slides import generate_slides_stream
 
 router = APIRouter()
 
@@ -257,6 +258,24 @@ async def transcribe(
                             yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'mindmap', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     print(f"[LLM] Erreur carte mentale automatique (ignorée): {e}")
+
+                # --- Étape 9 : Analyse LLM automatique (slides) ---
+                try:
+                    yield f"data: {json.dumps({'type': 'analysis_start', 'analysis': 'slides'}, ensure_ascii=False)}\n\n"
+                    sl_start = time.time()
+
+                    for chunk in generate_slides_stream(full_text, filename=file.filename, model=use_model):
+                        if chunk["done"]:
+                            sl_ms = int((time.time() - sl_start) * 1000)
+                            save_analysis_sync(
+                                config.DB_PATH, tid, "slides",
+                                chunk["full_text"], use_model, sl_ms,
+                            )
+                            yield f"data: {json.dumps({'type': 'analysis_done', 'analysis': 'slides', 'processing_ms': sl_ms}, ensure_ascii=False)}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'analysis_token', 'analysis': 'slides', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    print(f"[LLM] Erreur slides automatique (ignorée): {e}")
 
         except Exception as e:
             mark_error_sync(config.DB_PATH, tid, str(e))

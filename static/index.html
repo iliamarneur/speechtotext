@@ -334,6 +334,35 @@
         .mindmap-wrap svg { width: 100%; height: 450px; display: block; }
         .mindmap-wrap .markmap-node text { fill: #1e293b; font-size: 14px; font-weight: 500; }
         .mindmap-wrap .markmap-node circle { stroke-width: 2px; }
+
+        /* Slides viewer */
+        .slides-viewer {
+            background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            overflow: hidden;
+        }
+        .slide-display {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            min-height: 300px; padding: 2rem 2.5rem;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .slide-display h1 { font-size: 1.5rem; color: #f8fafc; margin-bottom: 0.5rem; }
+        .slide-display h2 { font-size: 1.15rem; color: #3b82f6; margin-bottom: 0.8rem; }
+        .slide-display h3 { font-size: 1rem; color: #8b5cf6; margin-bottom: 0.6rem; }
+        .slide-display p { color: #cbd5e1; line-height: 1.6; margin-bottom: 0.4rem; }
+        .slide-display ul { padding-left: 1.5rem; color: #cbd5e1; }
+        .slide-display li { margin: 0.3rem 0; line-height: 1.5; }
+        .slide-display strong { color: #f8fafc; }
+        .slides-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 1rem; background: #1e293b; border-top: 1px solid #334155;
+        }
+        .slides-nav button {
+            padding: 0.35rem 0.8rem; background: #334155; color: #e2e8f0;
+            border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+        }
+        .slides-nav button:hover { background: #475569; }
+        .slides-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+        .slides-nav .slide-counter { color: #94a3b8; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -517,6 +546,27 @@
             }, tree);
             return true;
         } catch(e) { console.warn('Markmap render error:', e); return false; }
+    }
+
+    // Slides viewer helper
+    function createSlideViewer(md, displayEl, counterEl, prevBtn, nextBtn, viewerEl, contentEl) {
+        const slides = md.split(/\n---\n/).map(s => s.trim()).filter(Boolean);
+        if (!slides.length) return;
+        let current = 0;
+
+        function showSlide(i) {
+            current = Math.max(0, Math.min(i, slides.length - 1));
+            displayEl.innerHTML = markdownToHtml(slides[current]);
+            counterEl.textContent = (current + 1) + ' / ' + slides.length;
+            prevBtn.disabled = current === 0;
+            nextBtn.disabled = current === slides.length - 1;
+        }
+
+        prevBtn.onclick = () => showSlide(current - 1);
+        nextBtn.onclick = () => showSlide(current + 1);
+        viewerEl.style.display = 'block';
+        if (contentEl) contentEl.style.display = 'none';
+        showSlide(0);
     }
 
     // ========================
@@ -713,6 +763,7 @@
                     <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="dotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
                     <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="dotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                     <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="dotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
+                    <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="dotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
                 </div>
                 <div class="analysis-panel active" id="panelSummary">
                     <div class="analysis-panel-header">
@@ -757,6 +808,21 @@
                     <div class="mindmap-wrap" id="uploadMindmapWrap" style="display:none;"><svg id="uploadMindmapSvg"></svg></div>
                     <div class="summary-content" id="uploadMindmapContent"></div>
                 </div>
+                <div class="analysis-panel" id="panelSlides">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="slidesBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadSlidesStatus"></span></div>
+                    </div>
+                    <div class="slides-viewer" id="uploadSlidesViewer" style="display:none;">
+                        <div class="slide-display" id="uploadSlideDisplay"></div>
+                        <div class="slides-nav">
+                            <button id="uploadSlidePrev">&#9664; Precedent</button>
+                            <span class="slide-counter" id="uploadSlideCounter">1 / 1</span>
+                            <button id="uploadSlideNext">Suivant &#9654;</button>
+                        </div>
+                    </div>
+                    <div class="summary-content" id="uploadSlidesContent"></div>
+                </div>
             </div>
         `;
 
@@ -796,6 +862,10 @@
         const uploadMindmapStatus = document.getElementById('uploadMindmapStatus');
         const mindmapBadge = document.getElementById('mindmapBadge');
         const uploadMindmapWrap = document.getElementById('uploadMindmapWrap');
+        const uploadSlidesContent = document.getElementById('uploadSlidesContent');
+        const uploadSlidesStatus = document.getElementById('uploadSlidesStatus');
+        const slidesBadge = document.getElementById('slidesBadge');
+        const uploadSlidesViewer = document.getElementById('uploadSlidesViewer');
 
         // Tab switching for upload analysis tabs
         document.getElementById('uploadAnalysisTabs').addEventListener('click', (e) => {
@@ -872,6 +942,8 @@
             uploadQuizContent.textContent = '';
             uploadMindmapContent.textContent = '';
             uploadMindmapWrap.style.display = 'none';
+            uploadSlidesContent.textContent = '';
+            uploadSlidesViewer.style.display = 'none';
             document.querySelectorAll('#analysisContainer .tab-dot').forEach(d => { d.className = 'tab-dot idle'; });
             progressContainer.classList.add('active');
             setProgress(0, 'Envoi du fichier...');
@@ -883,6 +955,7 @@
             let studyCardsMd = '';
             let quizMd = '';
             let mindmapMd = '';
+            let slidesMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -936,6 +1009,7 @@
                                 study_cards: { content: uploadStudyCardsContent, status: uploadStudyCardsStatus, badge: studyCardsBadge, md: () => studyCardsMd = '',  dot: 'dotStudyCards',  msg: 'Generation des fiches...' },
                                 quiz:        { content: uploadQuizContent,       status: uploadQuizStatus,       badge: quizBadge,       md: () => quizMd = '',        dot: 'dotQuiz',        msg: 'Generation du quiz...' },
                                 mindmap:     { content: uploadMindmapContent,    status: uploadMindmapStatus,    badge: mindmapBadge,    md: () => mindmapMd = '',     dot: 'dotMindmap',     msg: 'Generation de la carte mentale...' },
+                                slides:      { content: uploadSlidesContent,     status: uploadSlidesStatus,     badge: slidesBadge,     md: () => slidesMd = '',      dot: 'dotSlides',      msg: 'Generation des slides...' },
                             };
                             const a = aMap[event.analysis] || aMap.summary;
                             a.md();
@@ -960,6 +1034,7 @@
                                 study_cards: { content: uploadStudyCardsContent, badge: studyCardsBadge, get: () => studyCardsMd,  set: v => studyCardsMd = v },
                                 quiz:        { content: uploadQuizContent,       badge: quizBadge,       get: () => quizMd,        set: v => quizMd = v },
                                 mindmap:     { content: uploadMindmapContent,    badge: mindmapBadge,    get: () => mindmapMd,     set: v => mindmapMd = v },
+                                slides:      { content: uploadSlidesContent,     badge: slidesBadge,     get: () => slidesMd,      set: v => slidesMd = v },
                             };
                             const t = tMap[event.analysis] || tMap.summary;
                             t.set(t.get() + event.token);
@@ -974,12 +1049,22 @@
                                 study_cards: { status: uploadStudyCardsStatus, badge: studyCardsBadge, dot: 'dotStudyCards' },
                                 quiz:        { status: uploadQuizStatus,       badge: quizBadge,       dot: 'dotQuiz' },
                                 mindmap:     { status: uploadMindmapStatus,    badge: mindmapBadge,    dot: 'dotMindmap' },
+                                slides:      { status: uploadSlidesStatus,     badge: slidesBadge,     dot: 'dotSlides' },
                             };
                             const d = dMap[event.analysis] || dMap.summary;
                             d.status.textContent = formatMs(event.processing_ms);
                             d.badge.textContent = 'IA';
                             const dot = document.getElementById(d.dot);
                             if (dot) dot.className = 'tab-dot done';
+                            // Render slides viewer
+                            if (event.analysis === 'slides' && slidesMd) {
+                                createSlideViewer(slidesMd,
+                                    document.getElementById('uploadSlideDisplay'),
+                                    document.getElementById('uploadSlideCounter'),
+                                    document.getElementById('uploadSlidePrev'),
+                                    document.getElementById('uploadSlideNext'),
+                                    uploadSlidesViewer, uploadSlidesContent);
+                            }
                             // Render mindmap if markmap available
                             if (event.analysis === 'mindmap' && mindmapMd) {
                                 const svg = document.getElementById('uploadMindmapSvg');
@@ -1091,6 +1176,7 @@
                             <button class="analysis-tab" data-tab="study_cards"><span class="tab-dot idle" id="detailDotStudyCards"></span><span class="tab-icon">&#128218;</span>Fiches</button>
                             <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="detailDotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                             <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="detailDotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
+                            <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="detailDotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
                         </div>
                         <div class="analysis-panel active" id="detailPanelSummary">
                             <div class="analysis-panel-header">
@@ -1134,6 +1220,21 @@
                             </div>
                             <div class="mindmap-wrap" id="detailMindmapWrap" style="display:none;"><svg id="detailMindmapSvg"></svg></div>
                             <div class="summary-content" id="mindmapContent"></div>
+                        </div>
+                        <div class="analysis-panel" id="detailPanelSlides">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailSlidesBadge"></span><span class="summary-status" id="slidesStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnSlides">Regenerer</button></div>
+                            </div>
+                            <div class="slides-viewer" id="detailSlidesViewer" style="display:none;">
+                                <div class="slide-display" id="detailSlideDisplay"></div>
+                                <div class="slides-nav">
+                                    <button id="detailSlidePrev">&#9664; Precedent</button>
+                                    <span class="slide-counter" id="detailSlideCounter">1 / 1</span>
+                                    <button id="detailSlideNext">Suivant &#9654;</button>
+                                </div>
+                            </div>
+                            <div class="summary-content" id="slidesContent"></div>
                         </div>
                     </div>
                 </div>
@@ -1701,6 +1802,99 @@
         }
 
         btnMindmap.addEventListener('click', runMindmap);
+
+        // --- Slides IA ---
+        const btnSlides = document.getElementById('btnSlides');
+        const slidesContent = document.getElementById('slidesContent');
+        const slidesStatus = document.getElementById('slidesStatus');
+        const detailSlidesBadge = document.getElementById('detailSlidesBadge');
+        const detailSlidesViewer = document.getElementById('detailSlidesViewer');
+
+        try {
+            const existingSl = await api('/api/transcriptions/' + id + '/analysis/slides');
+            if (existingSl && existingSl.content) {
+                slidesContent.innerHTML = markdownToHtml(existingSl.content);
+                detailSlidesBadge.textContent = existingSl.model_name || 'IA';
+                slidesStatus.textContent = formatMs(existingSl.processing_ms);
+                setDetailDot('slides', 'done');
+                createSlideViewer(existingSl.content,
+                    document.getElementById('detailSlideDisplay'),
+                    document.getElementById('detailSlideCounter'),
+                    document.getElementById('detailSlidePrev'),
+                    document.getElementById('detailSlideNext'),
+                    detailSlidesViewer, slidesContent);
+            } else {
+                slidesContent.innerHTML = '<span style="color:#64748b;">Aucune slide disponible.</span>';
+            }
+        } catch (e) {
+            slidesContent.innerHTML = '<span style="color:#64748b;">Aucune slide disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnSlides.disabled = true;
+            btnSlides.title = 'LLM non disponible (Ollama non lance)';
+            btnSlides.style.opacity = '0.5';
+        }
+
+        async function runSlides() {
+            btnSlides.disabled = true;
+            slidesContent.textContent = '';
+            slidesContent.style.display = 'block';
+            detailSlidesViewer.style.display = 'none';
+            slidesStatus.textContent = 'Generation en cours...';
+            detailSlidesBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/generate-slides', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            slidesContent.innerHTML = markdownToHtml(fullMd);
+                            slidesContent.scrollTop = slidesContent.scrollHeight;
+                            detailSlidesBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            slidesStatus.textContent = formatMs(event.processing_ms);
+                            createSlideViewer(fullMd,
+                                document.getElementById('detailSlideDisplay'),
+                                document.getElementById('detailSlideCounter'),
+                                document.getElementById('detailSlidePrev'),
+                                document.getElementById('detailSlideNext'),
+                                detailSlidesViewer, slidesContent);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                slidesStatus.textContent = 'Erreur : ' + e.message;
+                slidesStatus.style.color = '#fca5a5';
+            } finally {
+                btnSlides.disabled = false;
+            }
+        }
+
+        btnSlides.addEventListener('click', runSlides);
 
         // Segment click = seek audio
         if (hasAudio) {
