@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS transcriptions (
     quality_score INTEGER,
     notes TEXT,
     error_message TEXT,
-    vad_stats TEXT
+    vad_stats TEXT,
+    num_speakers INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS segments (
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS segments (
     start_ms INTEGER NOT NULL,
     end_ms INTEGER NOT NULL,
     text TEXT NOT NULL,
+    speaker TEXT,
     FOREIGN KEY (transcription_id) REFERENCES transcriptions(id) ON DELETE CASCADE
 );
 
@@ -85,6 +87,8 @@ CREATE INDEX IF NOT EXISTS idx_analyses_type ON analyses(type);
 # Migration pour les bases existantes (ajout colonne vad_stats)
 MIGRATIONS = [
     "ALTER TABLE transcriptions ADD COLUMN vad_stats TEXT",
+    "ALTER TABLE segments ADD COLUMN speaker TEXT",
+    "ALTER TABLE transcriptions ADD COLUMN num_speakers INTEGER",
 ]
 
 
@@ -156,8 +160,8 @@ async def update_transcription_status(db, tid: int, status: str, **kwargs):
 async def insert_segments(db, tid: int, segments: list):
     """Insère les segments d'une transcription."""
     await db.executemany(
-        "INSERT INTO segments (transcription_id, idx, start_ms, end_ms, text) VALUES (?, ?, ?, ?, ?)",
-        [(tid, i, seg["start_ms"], seg["end_ms"], seg["text"]) for i, seg in enumerate(segments)]
+        "INSERT INTO segments (transcription_id, idx, start_ms, end_ms, text, speaker) VALUES (?, ?, ?, ?, ?, ?)",
+        [(tid, i, seg["start_ms"], seg["end_ms"], seg["text"], seg.get("speaker")) for i, seg in enumerate(segments)]
     )
     await db.commit()
 
@@ -330,7 +334,8 @@ async def get_dashboard_stats(db, period: str = "30d") -> dict:
 
 def save_result_sync(db_path: str, tid: int, duration_sec: float, language: str,
                      language_prob: float, word_count: int, processing_ms: int,
-                     segments: list, audio_path: str = None, vad_stats: str = None):
+                     segments: list, audio_path: str = None, vad_stats: str = None,
+                     num_speakers: int = None):
     """Sauvegarde le résultat d'une transcription (appelé depuis le générateur sync)."""
     conn = get_sync_connection(db_path)
     try:
@@ -338,14 +343,14 @@ def save_result_sync(db_path: str, tid: int, duration_sec: float, language: str,
             """UPDATE transcriptions SET
                 status='completed', duration_sec=?, language=?, language_detected=?,
                 word_count=?, processing_ms=?, audio_path=?, vad_stats=?,
-                updated_at=datetime('now')
+                num_speakers=?, updated_at=datetime('now')
                WHERE id=?""",
             (duration_sec, language, language_prob, word_count, processing_ms,
-             audio_path, vad_stats, tid)
+             audio_path, vad_stats, num_speakers, tid)
         )
         conn.executemany(
-            "INSERT INTO segments (transcription_id, idx, start_ms, end_ms, text) VALUES (?, ?, ?, ?, ?)",
-            [(tid, i, seg["start_ms"], seg["end_ms"], seg["text"]) for i, seg in enumerate(segments)]
+            "INSERT INTO segments (transcription_id, idx, start_ms, end_ms, text, speaker) VALUES (?, ?, ?, ?, ?, ?)",
+            [(tid, i, seg["start_ms"], seg["end_ms"], seg["text"], seg.get("speaker")) for i, seg in enumerate(segments)]
         )
         conn.commit()
     finally:

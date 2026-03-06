@@ -23,6 +23,7 @@ from backend.llm_processing.mindmap import generate_mindmap_stream
 from backend.llm_processing.slides import generate_slides_stream
 from backend.llm_processing.infographic import generate_infographic_stream
 from backend.llm_processing.data_table import extract_data_table_stream
+from backend.llm_processing.chat import chat_stream
 
 router = APIRouter()
 
@@ -503,6 +504,50 @@ async def get_analysis_by_type(tid: int, analysis_type: str):
         return analysis
     finally:
         await db.close()
+
+
+@router.post("/api/transcriptions/{tid}/chat", dependencies=[Depends(verify_api_key)])
+async def chat(tid: int, request: Request, model: str = Query(None)):
+    """Chat avec la transcription via LLM en streaming SSE."""
+    if not ollama_client.is_available():
+        raise HTTPException(503, "LLM non disponible. Verifiez qu'Ollama est lance.")
+
+    # Parse question from body
+    try:
+        body = await request.json()
+        question = body.get("question", "").strip()
+    except Exception:
+        question = ""
+    if not question:
+        raise HTTPException(400, "Veuillez poser une question.")
+
+    db = await get_connection(config.DB_PATH)
+    try:
+        t = await get_transcription_with_segments(db, tid)
+        if not t:
+            raise HTTPException(404, "Transcription non trouvee.")
+    finally:
+        await db.close()
+
+    segments = t.get("segments", [])
+    full_text = " ".join(s["text"] for s in segments if s.get("text"))
+    if not full_text.strip():
+        raise HTTPException(400, "Le texte de la transcription est vide.")
+
+    filename = t.get("filename", "audio")
+    use_model = model or config.LLM_MODEL
+
+    def generate():
+        try:
+            for chunk in chat_stream(full_text, question, filename=filename, model=use_model):
+                if chunk["done"]:
+                    yield f"data: {json.dumps({'type': 'done', 'stats': chunk.get('stats', {})}, ensure_ascii=False)}\n\n"
+                else:
+                    yield f"data: {json.dumps({'type': 'token', 'token': chunk['token']}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 ANALYSIS_LABELS = {

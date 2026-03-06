@@ -202,7 +202,44 @@
 
         /* Detail view */
         .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        @media (max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+        .detail-full { grid-column: 1 / -1; }
+        @media (max-width: 768px) {
+            .detail-grid { grid-template-columns: 1fr; }
+            .detail-full { grid-template-columns: 1fr !important; }
+        }
+
+        /* Dialogue view */
+        .dialogue-list {
+            max-height: 600px; overflow-y: auto; font-size: 0.9rem;
+        }
+        .dialogue-turn {
+            display: flex; gap: 0.8rem; padding: 0.7rem 0.8rem;
+            border-bottom: 1px solid #1e293b;
+        }
+        .dialogue-turn:last-child { border-bottom: none; }
+        .dialogue-avatar {
+            width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.7rem; font-weight: 800; letter-spacing: -0.5px;
+        }
+        .dialogue-body { flex: 1; min-width: 0; }
+        .dialogue-header {
+            display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;
+        }
+        .dialogue-name { font-weight: 700; font-size: 0.85rem; }
+        .dialogue-time { font-size: 0.75rem; color: #64748b; }
+        .dialogue-text { color: #cbd5e1; line-height: 1.5; }
+        .avt-0 { background: #3b82f630; color: #60a5fa; }
+        .avt-1 { background: #f59e0b30; color: #fbbf24; }
+        .avt-2 { background: #10b98130; color: #34d399; }
+        .avt-3 { background: #ef444430; color: #f87171; }
+        .avt-4 { background: #a855f730; color: #c084fc; }
+        .avt-5 { background: #ec489930; color: #f472b6; }
+        .avt-6 { background: #14b8a630; color: #2dd4bf; }
+        .avt-7 { background: #f9731630; color: #fb923c; }
+        .dialogue-no-speakers {
+            text-align: center; padding: 2rem; color: #64748b; font-size: 0.9rem;
+        }
         .meta-table { width: 100%; font-size: 0.85rem; }
         .meta-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #334155; }
         .meta-table td:first-child { color: #94a3b8; font-weight: 600; width: 45%; }
@@ -217,6 +254,18 @@
         }
         .segment-item:hover { background: rgba(59,130,246,0.08); }
         .seg-time { color: #3b82f6; font-weight: 600; white-space: nowrap; min-width: 100px; }
+        .seg-speaker {
+            font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+            white-space: nowrap; line-height: 1.6;
+        }
+        .spk-0 { background: #3b82f620; color: #60a5fa; border: 1px solid #3b82f640; }
+        .spk-1 { background: #f59e0b20; color: #fbbf24; border: 1px solid #f59e0b40; }
+        .spk-2 { background: #10b98120; color: #34d399; border: 1px solid #10b98140; }
+        .spk-3 { background: #ef444420; color: #f87171; border: 1px solid #ef444440; }
+        .spk-4 { background: #a855f720; color: #c084fc; border: 1px solid #a855f740; }
+        .spk-5 { background: #ec489920; color: #f472b6; border: 1px solid #ec489940; }
+        .spk-6 { background: #14b8a620; color: #2dd4bf; border: 1px solid #14b8a640; }
+        .spk-7 { background: #f9731620; color: #fb923c; border: 1px solid #f9731640; }
         .seg-text { flex: 1; }
         .seg-text[contenteditable="true"] { outline: 1px solid #3b82f6; border-radius: 4px; padding: 2px 4px; }
 
@@ -293,16 +342,15 @@
         .analysis-tabs-container.result { display: none; }
         .analysis-tabs-container.result.active { display: block; }
         .analysis-tabs {
-            display: flex; gap: 0.5rem; padding: 0.4rem;
+            display: flex; gap: 0.35rem; padding: 0.4rem;
             background: #0f172a; border-radius: 12px; border: 1px solid #334155;
-            overflow-x: auto; scrollbar-width: none;
+            flex-wrap: wrap;
         }
-        .analysis-tabs::-webkit-scrollbar { display: none; }
         .analysis-tab {
-            padding: 0.55rem 1rem; font-size: 0.8rem; font-weight: 600;
+            padding: 0.45rem 0.7rem; font-size: 0.75rem; font-weight: 600;
             color: #94a3b8; cursor: pointer; white-space: nowrap;
             border: none; border-radius: 8px; background: transparent;
-            transition: all 0.25s ease; display: flex; align-items: center; gap: 0.45rem;
+            transition: all 0.25s ease; display: flex; align-items: center; gap: 0.35rem;
             position: relative;
         }
         .analysis-tab:hover { color: #e2e8f0; background: rgba(59,130,246,0.08); }
@@ -402,6 +450,41 @@
         }
         .instructions-area textarea:focus { outline: none; border-color: #818cf8; }
         .instructions-area textarea::placeholder { color: #475569; }
+        .chat-container {
+            margin-top: 0;
+        }
+        .chat-messages {
+            max-height: 400px; overflow-y: auto; padding: 0.8rem;
+            background: #0f172a; border: 1px solid #1e293b; border-radius: 8px 8px 0 0;
+            display: flex; flex-direction: column; gap: 0.8rem;
+        }
+        .chat-msg {
+            padding: 0.6rem 0.8rem; border-radius: 8px; max-width: 85%; line-height: 1.5;
+            font-size: 0.9rem; word-wrap: break-word;
+        }
+        .chat-msg.user {
+            background: #1e3a5f; color: #93c5fd; align-self: flex-end; border-bottom-right-radius: 2px;
+        }
+        .chat-msg.assistant {
+            background: #1e293b; color: #e2e8f0; align-self: flex-start; border-bottom-left-radius: 2px;
+        }
+        .chat-msg.assistant .chat-typing { color: #64748b; }
+        .chat-input-row {
+            display: flex; gap: 0; border: 1px solid #1e293b; border-top: none;
+            border-radius: 0 0 8px 8px; overflow: hidden;
+        }
+        .chat-input-row input {
+            flex: 1; padding: 0.7rem 0.8rem; background: #1e293b; color: #e2e8f0;
+            border: none; font-size: 0.9rem; outline: none;
+        }
+        .chat-input-row input::placeholder { color: #475569; }
+        .chat-input-row button {
+            padding: 0.7rem 1.2rem; background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            color: #fff; border: none; cursor: pointer; font-weight: 600; font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+        .chat-input-row button:hover { opacity: 0.9; }
+        .chat-input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
         .md-table {
             width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem;
         }
@@ -526,6 +609,58 @@
 
     function badgeClass(status) {
         return 'badge badge-' + (status || 'pending');
+    }
+
+    const _speakerIdx = {};
+    let _speakerCount = 0;
+    function speakerClass(speaker) {
+        if (!(speaker in _speakerIdx)) {
+            _speakerIdx[speaker] = _speakerCount++;
+        }
+        return 'spk-' + (_speakerIdx[speaker] % 8);
+    }
+    function speakerColorIdx(speaker) {
+        if (!(speaker in _speakerIdx)) {
+            _speakerIdx[speaker] = _speakerCount++;
+        }
+        return _speakerIdx[speaker] % 8;
+    }
+    function speakerInitials(speaker) {
+        if (!speaker) return '?';
+        const m = speaker.match(/(\d+)/);
+        return m ? 'S' + m[1] : speaker.slice(0, 2).toUpperCase();
+    }
+    function buildDialogueView(segments) {
+        const hasSpeakers = segments.some(s => s.speaker);
+        if (!hasSpeakers) {
+            return '<div class="dialogue-no-speakers">Pas de diarisation disponible pour cette transcription.<br><small style="color:#475569;">La diarisation identifie automatiquement les locuteurs.</small></div>';
+        }
+        // Group consecutive segments by same speaker
+        const groups = [];
+        let current = null;
+        for (const s of segments) {
+            const spk = s.speaker || 'SPEAKER_00';
+            if (current && current.speaker === spk) {
+                current.texts.push(s.text);
+                current.end_ms = s.end_ms;
+            } else {
+                current = { speaker: spk, texts: [s.text], start_ms: s.start_ms, end_ms: s.end_ms };
+                groups.push(current);
+            }
+        }
+        return groups.map(g => {
+            const idx = speakerColorIdx(g.speaker);
+            return '<div class="dialogue-turn">' +
+                '<div class="dialogue-avatar avt-' + idx + '">' + speakerInitials(g.speaker) + '</div>' +
+                '<div class="dialogue-body">' +
+                    '<div class="dialogue-header">' +
+                        '<span class="dialogue-name spk-' + idx + '" style="background:transparent;border:none;padding:0;font-size:0.85rem;">' + escHtml(g.speaker) + '</span>' +
+                        '<span class="dialogue-time">' + formatTime(g.start_ms/1000) + ' - ' + formatTime(g.end_ms/1000) + '</span>' +
+                    '</div>' +
+                    '<div class="dialogue-text">' + escHtml(g.texts.join(' ')) + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
     }
 
     function markdownToHtml(md) {
@@ -844,6 +979,10 @@
                 </div>
                 <textarea class="result-text" id="resultText" readonly></textarea>
             </div>
+            <div class="card result" id="dialogueCard" style="display:none;">
+                <label>&#128483; Dialogue</label>
+                <div class="dialogue-list" id="uploadDialogueList"></div>
+            </div>
             <div class="card analysis-tabs-container result" id="analysisContainer">
                 <label style="margin:0 0 0.8rem 0;">Analyses IA</label>
                 <div class="analysis-tabs" id="uploadAnalysisTabs">
@@ -1100,7 +1239,11 @@
                         if (!jsonStr) continue;
                         const event = JSON.parse(jsonStr);
 
-                        if (event.type === 'progress') {
+                        if (event.type === 'diarization_start') {
+                            setProgress(99.9, 'Diarisation des locuteurs...');
+                        } else if (event.type === 'diarization_done') {
+                            setProgress(99.9, 'Diarisation terminee : ' + event.num_speakers + ' locuteur(s)');
+                        } else if (event.type === 'progress') {
                             setProgress(event.progress,
                                 'Segment [' + formatTime(event.segment.start) + ' -> ' + formatTime(event.segment.end) + ']');
                             appendLiveText(event.segment.text);
@@ -1109,9 +1252,23 @@
                             lastResultData = { text: event.text, language: event.language, duration: event.duration, fileName: selectedFile.name };
                             progressContainer.classList.remove('active');
                             resultText.value = event.text;
+                            const speakerInfo = event.num_speakers ? ' — ' + event.num_speakers + ' locuteur(s)' : '';
                             resultMeta.textContent = 'Langue : ' + event.language +
-                                ' (' + (event.language_probability*100).toFixed(0) + '%) — Duree : ' + formatTime(event.duration);
+                                ' (' + (event.language_probability*100).toFixed(0) + '%) — Duree : ' + formatTime(event.duration) + speakerInfo;
                             resultCard.classList.add('active');
+                            // Show dialogue view if speakers detected
+                            const dialogueCard = document.getElementById('dialogueCard');
+                            if (event.num_speakers && event.segments) {
+                                const segs = event.segments.map(s => ({
+                                    speaker: s.speaker, text: s.text,
+                                    start_ms: Math.round(s.start * 1000), end_ms: Math.round(s.end * 1000)
+                                }));
+                                document.getElementById('uploadDialogueList').innerHTML = buildDialogueView(segs);
+                                dialogueCard.style.display = '';
+                                dialogueCard.classList.add('active');
+                            } else {
+                                dialogueCard.style.display = 'none';
+                            }
                             if (event.transcription_id) {
                                 btnViewDetail.style.display = '';
                                 btnViewDetail.onclick = () => navigate('#/transcriptions/' + event.transcription_id);
@@ -1136,14 +1293,15 @@
                             a.content.innerHTML = '<span style="color:#64748b;">' + a.msg + '</span>';
                             const dot = document.getElementById(a.dot);
                             if (dot) dot.className = 'tab-dot loading';
-                            // Auto-switch to the tab being generated
-                            document.querySelectorAll('#uploadAnalysisTabs .analysis-tab').forEach(t => t.classList.remove('active'));
-                            const activeTab = document.querySelector('#uploadAnalysisTabs .analysis-tab[data-tab="' + event.analysis + '"]');
-                            if (activeTab) activeTab.classList.add('active');
-                            document.querySelectorAll('#analysisContainer .analysis-panel').forEach(p => p.classList.remove('active'));
-                            const panelId = 'panel' + event.analysis.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('');
-                            const panel = document.getElementById(panelId);
-                            if (panel) panel.classList.add('active');
+                            // Auto-switch only for the first analysis (summary)
+                            if (event.analysis === 'summary') {
+                                document.querySelectorAll('#uploadAnalysisTabs .analysis-tab').forEach(t => t.classList.remove('active'));
+                                const activeTab = document.querySelector('#uploadAnalysisTabs .analysis-tab[data-tab="summary"]');
+                                if (activeTab) activeTab.classList.add('active');
+                                document.querySelectorAll('#analysisContainer .analysis-panel').forEach(p => p.classList.remove('active'));
+                                const panel = document.getElementById('panelSummary');
+                                if (panel) panel.classList.add('active');
+                            }
                         } else if (event.type === 'analysis_token') {
                             const tMap = {
                                 summary:     { content: uploadSummaryContent,    badge: summaryBadge,    get: () => summaryMd,     set: v => summaryMd = v },
@@ -1266,6 +1424,7 @@
                             <tr><td>Temps traitement</td><td>${formatMs(data.processing_ms)}</td></tr>
                             <tr><td>Ratio temps reel</td><td>${ratio}</td></tr>
                             <tr><td>Mots</td><td>${data.word_count || '-'}</td></tr>
+                            <tr><td>Locuteurs</td><td>${data.num_speakers ? data.num_speakers + ' detecte(s)' : '-'}</td></tr>
                             <tr><td>Statut</td><td><span class="${badgeClass(data.status)}">${escHtml(data.status)}</span></td></tr>
                             <tr><td>Date</td><td>${formatDate(data.created_at)}</td></tr>
                         </table>
@@ -1292,7 +1451,28 @@
                             <button class="btn btn-sm btn-secondary" onclick="exportFile(${id},'md')">Markdown</button>
                         </div>
                     </div>
+                </div>
+                <div>
+                    <div class="card">
+                        <label>Transcription</label>
+                        <textarea class="result-text" readonly style="min-height:300px;">${escHtml(fullText)}</textarea>
+                    </div>
                     <div class="card" style="margin-top:1.5rem;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.8rem;">
+                            <label style="margin:0;">&#128483; Diarisation${data.num_speakers ? ' — ' + data.num_speakers + ' locuteur(s)' : ''}</label>
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="font-size:0.8rem;color:#64748b;" id="diarStatus">${data.num_speakers ? 'Terminee' : ''}</span>
+                                <button class="btn btn-sm btn-ai" id="btnDiarize">${data.num_speakers ? 'Relancer' : 'Lancer'}</button>
+                            </div>
+                        </div>
+                        <div id="diarError" style="display:none;background:#7f1d1d;border:1px solid #991b1b;color:#fca5a5;padding:0.6rem 0.8rem;border-radius:8px;font-size:0.85rem;margin-bottom:0.8rem;"></div>
+                        <div class="dialogue-list" id="dialogueList">
+                            ${data.num_speakers ? buildDialogueView(segments) : '<div class="dialogue-no-speakers">Pas encore de diarisation.<br><small style="color:#475569;">Cliquez sur "Lancer" pour identifier les locuteurs.</small></div>'}
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-full">
+                    <div class="card">
                         <label style="margin:0 0 0.8rem 0;">Analyses IA</label>
                         <div class="analysis-tabs" id="detailAnalysisTabs">
                             <button class="analysis-tab active" data-tab="summary"><span class="tab-dot idle" id="detailDotSummary"></span><span class="tab-icon">&#128221;</span>Resume</button>
@@ -1393,7 +1573,17 @@
                         </div>
                     </div>
                 </div>
-                <div>
+                <div class="detail-full" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+                    <div class="card chat-container" id="chatCard">
+                        <label>&#128172; Chat avec la transcription</label>
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-msg assistant">Posez-moi une question sur le contenu de cet audio.</div>
+                        </div>
+                        <div class="chat-input-row">
+                            <input type="text" id="chatInput" placeholder="Ex: Quels sont les points principaux ?" />
+                            <button id="chatSend">Envoyer</button>
+                        </div>
+                    </div>
                     <div class="card">
                         <label>Segments (${segments.length})</label>
                         <div class="segments-list" id="segmentsList">
@@ -1401,6 +1591,7 @@
                             segments.map(s => `
                                 <div class="segment-item" data-id="${s.id}" data-start="${s.start_ms}">
                                     <span class="seg-time">[${formatTime(s.start_ms/1000)} -> ${formatTime(s.end_ms/1000)}]</span>
+                                    ${s.speaker ? '<span class="seg-speaker ' + speakerClass(s.speaker) + '">' + escHtml(s.speaker) + '</span>' : ''}
                                     <span class="seg-text" data-seg-id="${s.id}">${escHtml(s.text)}</span>
                                 </div>
                             `).join('')}
@@ -1413,6 +1604,74 @@
         // PDF from detail
         document.getElementById('btnDetailPdf').addEventListener('click', () => {
             generatePDF({ filename: data.filename, language: data.language, duration_sec: data.duration_sec, text: fullText });
+        });
+
+        // Diarisation
+        const btnDiarize = document.getElementById('btnDiarize');
+        const diarStatus = document.getElementById('diarStatus');
+        const diarError = document.getElementById('diarError');
+        const dialogueList = document.getElementById('dialogueList');
+
+        btnDiarize.addEventListener('click', async () => {
+            btnDiarize.disabled = true;
+            diarStatus.textContent = 'Chargement du pipeline...';
+            diarError.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/diarize', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const event = JSON.parse(line.slice(6));
+
+                        if (event.type === 'diarization_start') {
+                            diarStatus.textContent = 'Diarisation en cours...';
+                        } else if (event.type === 'diarization_done') {
+                            diarStatus.textContent = event.num_speakers + ' locuteur(s) - ' + formatMs(event.processing_ms);
+                            // Recharger la page pour mettre à jour segments + dialogue
+                            const freshData = await api('/api/transcriptions/' + id);
+                            const freshSegs = freshData.segments || [];
+                            dialogueList.innerHTML = buildDialogueView(freshSegs);
+                            // Mettre à jour les segments aussi
+                            const segsList = document.getElementById('segmentsList');
+                            if (segsList) {
+                                segsList.innerHTML = freshSegs.map(s => `
+                                    <div class="segment-item" data-id="${s.id}" data-start="${s.start_ms}">
+                                        <span class="seg-time">[${formatTime(s.start_ms/1000)} -> ${formatTime(s.end_ms/1000)}]</span>
+                                        ${s.speaker ? '<span class="seg-speaker ' + speakerClass(s.speaker) + '">' + escHtml(s.speaker) + '</span>' : ''}
+                                        <span class="seg-text" data-seg-id="${s.id}">${escHtml(s.text)}</span>
+                                    </div>
+                                `).join('');
+                            }
+                        } else if (event.type === 'diarization_error') {
+                            diarError.textContent = event.message;
+                            diarError.style.display = 'block';
+                            diarStatus.textContent = 'Erreur';
+                        }
+                    }
+                }
+            } catch (e) {
+                diarError.textContent = e.message;
+                diarError.style.display = 'block';
+                diarStatus.textContent = 'Erreur';
+            } finally {
+                btnDiarize.disabled = false;
+                btnDiarize.textContent = 'Relancer';
+            }
         });
 
         // Stars
@@ -2246,6 +2505,88 @@
         }
 
         btnDataTable.addEventListener('click', runDataTable);
+
+        // === Chat ===
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const chatSend = document.getElementById('chatSend');
+
+        if (!llmAvailable) {
+            chatSend.disabled = true;
+            chatInput.placeholder = 'LLM non disponible (Ollama non lance)';
+        }
+
+        async function sendChat() {
+            const question = chatInput.value.trim();
+            if (!question) return;
+
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-msg user';
+            userMsg.textContent = question;
+            chatMessages.appendChild(userMsg);
+            chatInput.value = '';
+            chatSend.disabled = true;
+
+            // Add assistant placeholder
+            const assistMsg = document.createElement('div');
+            assistMsg.className = 'chat-msg assistant';
+            assistMsg.innerHTML = '<span class="chat-typing">Reflexion en cours...</span>';
+            chatMessages.appendChild(assistMsg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullMd = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullMd += event.token;
+                            assistMsg.innerHTML = markdownToHtml(fullMd);
+                            chatMessages.scrollTop = chatMessages.scrollHeight;
+                        } else if (event.type === 'done') {
+                            assistMsg.innerHTML = markdownToHtml(fullMd);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                assistMsg.innerHTML = '<span style="color:#fca5a5;">Erreur : ' + escHtml(e.message) + '</span>';
+            } finally {
+                chatSend.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        chatSend.addEventListener('click', sendChat);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !chatSend.disabled) sendChat();
+        });
 
         // Segment click = seek audio
         if (hasAudio) {

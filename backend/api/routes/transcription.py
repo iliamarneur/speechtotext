@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException, Depends, Query, Request
@@ -12,13 +13,14 @@ from fastapi.responses import StreamingResponse, Response, FileResponse
 from backend import config
 from backend.api.deps import verify_api_key
 from backend.database import (
-    get_connection, create_transcription, get_transcription,
+    get_connection, get_sync_connection, create_transcription, get_transcription,
     get_transcription_with_segments, list_transcriptions,
     update_transcription_meta, update_segment_text,
     save_result_sync, mark_error_sync, save_analysis_sync,
 )
 from backend.transcription import whisper_service
 from backend.audio_processing import vad
+from backend.audio_processing import diarization
 from backend.outputs.exports import export_txt, export_json, export_srt, export_vtt, export_md
 from backend.llm_processing import ollama_client
 from backend.llm_processing.summarizer import summarize_stream
@@ -32,6 +34,34 @@ from backend.llm_processing.infographic import generate_infographic_stream
 from backend.llm_processing.data_table import extract_data_table_stream
 
 router = APIRouter()
+
+
+def _cleanup_old_audio():
+    """Supprime les fichiers audio les plus anciens pour ne garder que AUDIO_MAX_FILES."""
+    try:
+        audio_dir = config.AUDIO_DIR
+        if not os.path.isdir(audio_dir):
+            return
+        files = []
+        for f in os.listdir(audio_dir):
+            fp = os.path.join(audio_dir, f)
+            if os.path.isfile(fp):
+                files.append((os.path.getmtime(fp), fp))
+        files.sort(reverse=True)  # Plus récent en premier
+        to_delete = files[config.AUDIO_MAX_FILES:]
+        if not to_delete:
+            return
+        for _, fp in to_delete:
+            os.unlink(fp)
+        # Nettoyer audio_path en DB pour les fichiers supprimés
+        conn = get_sync_connection(config.DB_PATH)
+        try:
+            conn.execute("UPDATE transcriptions SET audio_path=NULL WHERE audio_path IS NOT NULL AND audio_path NOT IN (SELECT audio_path FROM transcriptions WHERE audio_path IS NOT NULL ORDER BY created_at DESC LIMIT ?)", (config.AUDIO_MAX_FILES,))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"[AUDIO] Erreur nettoyage audio (ignorée): {e}")
 
 
 @router.post("/transcribe")
@@ -67,9 +97,12 @@ async def transcribe(
     # Stocker l'audio si configuré
     audio_path = None
     if config.STORE_AUDIO:
+        os.makedirs(config.AUDIO_DIR, exist_ok=True)
         audio_dest = os.path.join(config.AUDIO_DIR, f"{tid}{suffix}")
         shutil.copy2(tmp_path, audio_dest)
         audio_path = audio_dest
+        # Nettoyage : garder seulement les N derniers fichiers
+        _cleanup_old_audio()
 
     def generate():
         start_time = time.time()
@@ -97,7 +130,23 @@ async def transcribe(
                 except Exception as e:
                     print(f"[VAD] Erreur pré-traitement (ignorée): {e}")
 
-            # --- Étape 2 : Transcription Whisper ---
+            # --- Lancer la diarisation en parallèle (analyse audio, pas texte) ---
+            diar_thread = None
+            diar_result_holder = {}
+            if diarization.is_available():
+                yield f"data: {json.dumps({'type': 'diarization_start'}, ensure_ascii=False)}\n\n"
+                def _run_diarization():
+                    try:
+                        diar_result_holder["start"] = time.time()
+                        diar_result_holder["result"] = diarization.diarize(tmp_path)
+                        diar_result_holder["ms"] = int((time.time() - diar_result_holder["start"]) * 1000)
+                    except Exception as e:
+                        diar_result_holder["error"] = str(e)
+                        print(f"[DIARIZATION] Erreur diarisation (ignoree): {e}")
+                diar_thread = threading.Thread(target=_run_diarization, daemon=True)
+                diar_thread.start()
+
+            # --- Étape 2 : Transcription Whisper (en parallèle avec diarisation) ---
             lang = language.strip() or None
             segments_gen, info = whisper_service.transcribe(
                 tmp_path, language=lang,
@@ -128,15 +177,27 @@ async def transcribe(
             full_text = " ".join(full_text_parts)
             word_count = len(full_text.split())
 
+            # --- Attendre la fin de la diarisation si lancée ---
+            num_speakers = None
+            if diar_thread is not None:
+                diar_thread.join()
+                if "result" in diar_result_holder:
+                    diar_result = diar_result_holder["result"]
+                    segments = diarization.assign_speakers(segments, diar_result["turns"])
+                    num_speakers = diar_result["num_speakers"]
+                    diar_ms = diar_result_holder.get("ms", 0)
+                    yield f"data: {json.dumps({'type': 'diarization_done', 'num_speakers': num_speakers, 'speakers': diar_result['speakers'], 'processing_ms': diar_ms}, ensure_ascii=False)}\n\n"
+
             # Sauvegarder en DB
             db_segments = [
-                {"start_ms": int(s["start"] * 1000), "end_ms": int(s["end"] * 1000), "text": s["text"]}
+                {"start_ms": int(s["start"] * 1000), "end_ms": int(s["end"] * 1000), "text": s["text"], "speaker": s.get("speaker")}
                 for s in segments
             ]
             save_result_sync(
                 config.DB_PATH, tid, info.duration, info.language,
                 round(info.language_probability, 3), word_count,
                 processing_ms, db_segments, audio_path, vad_json,
+                num_speakers,
             )
 
             result = {
@@ -148,6 +209,7 @@ async def transcribe(
                 "language_probability": round(info.language_probability, 3),
                 "duration": round(info.duration, 2),
                 "segments": segments,
+                "num_speakers": num_speakers,
             }
             yield f"data: {json.dumps(result, ensure_ascii=False)}\n\n"
 
@@ -426,6 +488,60 @@ async def api_export(tid: int, format: str = Query("txt")):
         )
     finally:
         await db.close()
+
+
+@router.get("/api/diarization/status", dependencies=[Depends(verify_api_key)])
+async def api_diarization_status():
+    """Vérifie si la diarisation est disponible."""
+    return {"available": diarization.is_available()}
+
+
+@router.post("/api/transcriptions/{tid}/diarize", dependencies=[Depends(verify_api_key)])
+async def api_diarize(tid: int):
+    """Lance/relance la diarisation sur une transcription existante (nécessite audio stocké)."""
+    if not diarization.is_available():
+        raise HTTPException(503, "Diarisation non disponible (pyannote non installé ou HF_TOKEN manquant).")
+
+    db = await get_connection(config.DB_PATH)
+    try:
+        t = await get_transcription_with_segments(db, tid)
+        if not t:
+            raise HTTPException(404, "Transcription non trouvée.")
+        audio_path = t.get("audio_path")
+        if not audio_path or not os.path.exists(audio_path):
+            raise HTTPException(400, "Fichier audio non stocké. Activez STORE_AUDIO=true et retranscrivez.")
+    finally:
+        await db.close()
+
+    segments = t.get("segments", [])
+
+    def generate():
+        try:
+            yield f"data: {json.dumps({'type': 'diarization_start'}, ensure_ascii=False)}\n\n"
+            diar_start = time.time()
+            diar_result = diarization.diarize(audio_path)
+            diar_ms = int((time.time() - diar_start) * 1000)
+
+            # Convertir segments DB en format compatible
+            seg_list = [{"start": s["start_ms"] / 1000, "end": s["end_ms"] / 1000, "text": s["text"]} for s in segments]
+            seg_list = diarization.assign_speakers(seg_list, diar_result["turns"])
+
+            # Mettre à jour les speakers en DB
+            conn = get_sync_connection(config.DB_PATH)
+            try:
+                for seg_db, seg_upd in zip(segments, seg_list):
+                    conn.execute("UPDATE segments SET speaker=? WHERE id=?", (seg_upd.get("speaker"), seg_db["id"]))
+                conn.execute("UPDATE transcriptions SET num_speakers=?, updated_at=datetime('now') WHERE id=?",
+                             (diar_result["num_speakers"], tid))
+                conn.commit()
+            finally:
+                conn.close()
+
+            yield f"data: {json.dumps({'type': 'diarization_done', 'num_speakers': diar_result['num_speakers'], 'speakers': diar_result['speakers'], 'processing_ms': diar_ms}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'diarization_error', 'message': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("/api/audio/{tid}", dependencies=[Depends(verify_api_key)])

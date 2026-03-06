@@ -12,14 +12,19 @@ MODEL_DIR = os.getenv("WHISPER_MODEL_DIR", "./models")
 DB_PATH = os.getenv("DB_PATH", "./data/transcriptions.db")
 
 # Audio storage
-STORE_AUDIO = os.getenv("STORE_AUDIO", "false").lower() in ("true", "1", "yes")
+STORE_AUDIO = os.getenv("STORE_AUDIO", "true").lower() in ("true", "1", "yes")
 AUDIO_DIR = os.getenv("AUDIO_DIR", "./data/audio")
+AUDIO_MAX_FILES = int(os.getenv("AUDIO_MAX_FILES", "20"))
 
 # Auth
 API_KEY = os.getenv("API_KEY", "")
 
 # VAD pre-processing
 ENABLE_VAD = os.getenv("ENABLE_VAD", "true").lower() in ("true", "1", "yes")
+
+# Diarisation (pyannote.audio)
+HF_TOKEN = os.getenv("HF_TOKEN", "")
+ENABLE_DIARIZATION = os.getenv("ENABLE_DIARIZATION", "true").lower() in ("true", "1", "yes")
 
 # LLM (Ollama)
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")

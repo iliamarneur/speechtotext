@@ -12,6 +12,10 @@ services:
       - WHISPER_MODEL=large-v3
       - DB_PATH=/data/transcriptions.db
       - STORE_AUDIO=false
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - LLM_MODEL=llama3.2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
 volumes:
