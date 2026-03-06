@@ -6,6 +6,9 @@
     <title>Transcription Audio</title>
     <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -363,6 +366,14 @@
         .slides-nav button:hover { background: #475569; }
         .slides-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
         .slides-nav .slide-counter { color: #94a3b8; font-size: 0.8rem; }
+
+        /* Infographic / Vega-Lite */
+        .vega-wrap {
+            background: #ffffff; border-radius: 8px; border: 1px solid #334155;
+            padding: 1rem; overflow: hidden;
+        }
+        .vega-wrap .vega-embed { width: 100%; }
+        .vega-wrap .vega-embed details { display: none; }
     </style>
 </head>
 <body>
@@ -569,6 +580,27 @@
         showSlide(0);
     }
 
+    function renderVegaLite(wrapEl, jsonStr, contentEl) {
+        try {
+            // Extract JSON from potential markdown code fences
+            let clean = jsonStr.trim();
+            const fenceMatch = clean.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (fenceMatch) clean = fenceMatch[1].trim();
+            const spec = JSON.parse(clean);
+            wrapEl.innerHTML = '';
+            wrapEl.style.display = 'block';
+            if (contentEl) contentEl.style.display = 'none';
+            vegaEmbed(wrapEl, spec, { actions: false, renderer: 'svg' }).catch(() => {
+                wrapEl.style.display = 'none';
+                if (contentEl) contentEl.style.display = 'block';
+            });
+        } catch (e) {
+            // JSON invalid — show raw text
+            wrapEl.style.display = 'none';
+            if (contentEl) contentEl.style.display = 'block';
+        }
+    }
+
     // ========================
     // VIEW: Dashboard
     // ========================
@@ -764,6 +796,7 @@
                     <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="dotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                     <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="dotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                     <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="dotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
+                    <button class="analysis-tab" data-tab="infographic"><span class="tab-dot idle" id="dotInfographic"></span><span class="tab-icon">&#128202;</span>Infographie</button>
                 </div>
                 <div class="analysis-panel active" id="panelSummary">
                     <div class="analysis-panel-header">
@@ -823,6 +856,14 @@
                     </div>
                     <div class="summary-content" id="uploadSlidesContent"></div>
                 </div>
+                <div class="analysis-panel" id="panelInfographic">
+                    <div class="analysis-panel-header">
+                        <div class="left"><span class="llm-badge" id="infographicBadge"></span></div>
+                        <div class="right"><span class="summary-status" id="uploadInfographicStatus"></span></div>
+                    </div>
+                    <div class="vega-wrap" id="uploadVegaWrap" style="display:none;"></div>
+                    <div class="summary-content" id="uploadInfographicContent"></div>
+                </div>
             </div>
         `;
 
@@ -866,6 +907,10 @@
         const uploadSlidesStatus = document.getElementById('uploadSlidesStatus');
         const slidesBadge = document.getElementById('slidesBadge');
         const uploadSlidesViewer = document.getElementById('uploadSlidesViewer');
+        const uploadInfographicContent = document.getElementById('uploadInfographicContent');
+        const uploadInfographicStatus = document.getElementById('uploadInfographicStatus');
+        const infographicBadge = document.getElementById('infographicBadge');
+        const uploadVegaWrap = document.getElementById('uploadVegaWrap');
 
         // Tab switching for upload analysis tabs
         document.getElementById('uploadAnalysisTabs').addEventListener('click', (e) => {
@@ -956,6 +1001,7 @@
             let quizMd = '';
             let mindmapMd = '';
             let slidesMd = '';
+            let infographicMd = '';
             const form = new FormData();
             form.append('file', selectedFile);
             form.append('language', document.getElementById('language').value);
@@ -1010,6 +1056,7 @@
                                 quiz:        { content: uploadQuizContent,       status: uploadQuizStatus,       badge: quizBadge,       md: () => quizMd = '',        dot: 'dotQuiz',        msg: 'Generation du quiz...' },
                                 mindmap:     { content: uploadMindmapContent,    status: uploadMindmapStatus,    badge: mindmapBadge,    md: () => mindmapMd = '',     dot: 'dotMindmap',     msg: 'Generation de la carte mentale...' },
                                 slides:      { content: uploadSlidesContent,     status: uploadSlidesStatus,     badge: slidesBadge,     md: () => slidesMd = '',      dot: 'dotSlides',      msg: 'Generation des slides...' },
+                                infographic: { content: uploadInfographicContent, status: uploadInfographicStatus, badge: infographicBadge, md: () => infographicMd = '', dot: 'dotInfographic', msg: 'Generation de l\'infographie...' },
                             };
                             const a = aMap[event.analysis] || aMap.summary;
                             a.md();
@@ -1035,6 +1082,7 @@
                                 quiz:        { content: uploadQuizContent,       badge: quizBadge,       get: () => quizMd,        set: v => quizMd = v },
                                 mindmap:     { content: uploadMindmapContent,    badge: mindmapBadge,    get: () => mindmapMd,     set: v => mindmapMd = v },
                                 slides:      { content: uploadSlidesContent,     badge: slidesBadge,     get: () => slidesMd,      set: v => slidesMd = v },
+                                infographic: { content: uploadInfographicContent, badge: infographicBadge, get: () => infographicMd, set: v => infographicMd = v },
                             };
                             const t = tMap[event.analysis] || tMap.summary;
                             t.set(t.get() + event.token);
@@ -1050,6 +1098,7 @@
                                 quiz:        { status: uploadQuizStatus,       badge: quizBadge,       dot: 'dotQuiz' },
                                 mindmap:     { status: uploadMindmapStatus,    badge: mindmapBadge,    dot: 'dotMindmap' },
                                 slides:      { status: uploadSlidesStatus,     badge: slidesBadge,     dot: 'dotSlides' },
+                                infographic: { status: uploadInfographicStatus, badge: infographicBadge, dot: 'dotInfographic' },
                             };
                             const d = dMap[event.analysis] || dMap.summary;
                             d.status.textContent = formatMs(event.processing_ms);
@@ -1072,6 +1121,9 @@
                                     uploadMindmapWrap.style.display = 'block';
                                     uploadMindmapContent.style.display = 'none';
                                 }
+                            }
+                            if (event.analysis === 'infographic' && infographicMd) {
+                                renderVegaLite(uploadVegaWrap, infographicMd, uploadInfographicContent);
                             }
                         } else if (event.type === 'error') {
                             throw new Error(event.message);
@@ -1177,6 +1229,7 @@
                             <button class="analysis-tab" data-tab="quiz"><span class="tab-dot idle" id="detailDotQuiz"></span><span class="tab-icon">&#10068;</span>Quiz</button>
                             <button class="analysis-tab" data-tab="mindmap"><span class="tab-dot idle" id="detailDotMindmap"></span><span class="tab-icon">&#128424;</span>Carte mentale</button>
                             <button class="analysis-tab" data-tab="slides"><span class="tab-dot idle" id="detailDotSlides"></span><span class="tab-icon">&#127916;</span>Slides</button>
+                            <button class="analysis-tab" data-tab="infographic"><span class="tab-dot idle" id="detailDotInfographic"></span><span class="tab-icon">&#128202;</span>Infographie</button>
                         </div>
                         <div class="analysis-panel active" id="detailPanelSummary">
                             <div class="analysis-panel-header">
@@ -1235,6 +1288,14 @@
                                 </div>
                             </div>
                             <div class="summary-content" id="slidesContent"></div>
+                        </div>
+                        <div class="analysis-panel" id="detailPanelInfographic">
+                            <div class="analysis-panel-header">
+                                <div class="left"><span class="llm-badge" id="detailInfographicBadge"></span><span class="summary-status" id="infographicStatus"></span></div>
+                                <div class="right"><button class="btn btn-sm btn-ai" id="btnInfographic">Regenerer</button></div>
+                            </div>
+                            <div class="vega-wrap" id="detailVegaWrap" style="display:none;"></div>
+                            <div class="summary-content" id="infographicContent"></div>
                         </div>
                     </div>
                 </div>
@@ -1895,6 +1956,89 @@
         }
 
         btnSlides.addEventListener('click', runSlides);
+
+        // === Infographic ===
+        const btnInfographic = document.getElementById('btnInfographic');
+        const infographicContent = document.getElementById('infographicContent');
+        const infographicStatusEl = document.getElementById('infographicStatus');
+        const detailInfographicBadge = document.getElementById('detailInfographicBadge');
+        const detailVegaWrap = document.getElementById('detailVegaWrap');
+
+        try {
+            const existingInf = await api('/api/transcriptions/' + id + '/analysis/infographic');
+            if (existingInf && existingInf.content) {
+                infographicContent.innerHTML = markdownToHtml(existingInf.content);
+                detailInfographicBadge.textContent = existingInf.model_name || 'IA';
+                infographicStatusEl.textContent = formatMs(existingInf.processing_ms);
+                setDetailDot('infographic', 'done');
+                renderVegaLite(detailVegaWrap, existingInf.content, infographicContent);
+            } else {
+                infographicContent.innerHTML = '<span style="color:#64748b;">Aucune infographie disponible.</span>';
+            }
+        } catch (e) {
+            infographicContent.innerHTML = '<span style="color:#64748b;">Aucune infographie disponible.</span>';
+        }
+
+        if (!llmAvailable) {
+            btnInfographic.disabled = true;
+            btnInfographic.title = 'LLM non disponible (Ollama non lance)';
+            btnInfographic.style.opacity = '0.5';
+        }
+
+        async function runInfographic() {
+            btnInfographic.disabled = true;
+            infographicContent.textContent = '';
+            infographicContent.style.display = 'block';
+            detailVegaWrap.style.display = 'none';
+            infographicStatusEl.textContent = 'Generation en cours...';
+            detailInfographicBadge.textContent = '';
+
+            try {
+                const resp = await fetch('/api/transcriptions/' + id + '/generate-infographic', { method: 'POST' });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                    throw new Error(err.detail || resp.statusText);
+                }
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullJson = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const jsonStr = line.slice(6).trim();
+                        if (!jsonStr) continue;
+                        const event = JSON.parse(jsonStr);
+
+                        if (event.type === 'token') {
+                            fullJson += event.token;
+                            infographicContent.innerHTML = markdownToHtml(fullJson);
+                            infographicContent.scrollTop = infographicContent.scrollHeight;
+                            detailInfographicBadge.textContent = 'IA';
+                        } else if (event.type === 'done') {
+                            infographicStatusEl.textContent = formatMs(event.processing_ms);
+                            renderVegaLite(detailVegaWrap, fullJson, infographicContent);
+                        } else if (event.type === 'error') {
+                            throw new Error(event.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                infographicStatusEl.textContent = 'Erreur : ' + e.message;
+                infographicStatusEl.style.color = '#fca5a5';
+            } finally {
+                btnInfographic.disabled = false;
+            }
+        }
+
+        btnInfographic.addEventListener('click', runInfographic);
 
         // Segment click = seek audio
         if (hasAudio) {
